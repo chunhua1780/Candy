@@ -1,0 +1,265 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Year 7 Study · Parents</title>
+<meta name="theme-color" content="#eef1f5">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Year 7 Parents">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Andika:wght@400;700&display=swap">
+<link rel="stylesheet" href="style.css">
+<style>
+/* Phone-first parent view: summary first, then planning word lists by date, then each list's progress */
+.wrap{max-width:760px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media (max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}}
+.kpi{background:var(--paper);border-radius:16px;padding:14px 16px;box-shadow:var(--shadow)}
+.kpi b{display:block;font:700 26px/1.15 var(--round);letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.kpi span{font-size:13px;color:var(--muted)}
+.act{display:grid;grid-template-columns:repeat(14,1fr);gap:5px;align-items:end;height:72px}
+.act div{background:var(--ink);border-radius:4px;min-height:3px;opacity:.85}
+.act.green div{background:var(--green-fill)}
+.act-l{display:grid;grid-template-columns:repeat(14,1fr);gap:5px;font-size:11px;color:var(--muted);text-align:center}
+.rrow{display:flex;justify-content:space-between;gap:10px;padding:11px 0;border-bottom:1px solid var(--sep);align-items:center}
+.rrow:last-child{border-bottom:0}
+.rrow b{font:600 16px var(--serif)}
+.score{font:600 14px var(--round);border-radius:980px;padding:3px 10px;background:var(--soft)}
+.score.good{background:var(--green-soft);color:var(--green)} .score.ok{background:var(--orange-soft);color:var(--orange)}
+details.list>summary{list-style:none;cursor:pointer}
+details.list>summary::-webkit-details-marker{display:none}
+details.list .chev{transition:transform .2s;color:var(--faint)}
+details.list[open] .chev{transform:rotate(90deg)}
+.status{font:600 12px var(--body);border-radius:980px;padding:3px 9px;display:inline-flex;align-items:center;gap:4px;text-transform:uppercase;letter-spacing:.04em}
+.status .ic{width:12px;height:12px}
+.status.lock{background:var(--soft);color:var(--muted)} .status.open{background:var(--green-soft);color:var(--green)} .status.test{background:var(--orange-soft);color:var(--orange)} .status.past{background:var(--soft);color:var(--faint)}
+.act.teal div{background:var(--c-teal)}
+.tacc{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) auto;gap:10px;align-items:center;padding:7px 0;font-size:14px}
+.tacc .bar{height:8px;border-radius:99px;background:var(--soft);overflow:hidden}.tacc .bar i{display:block;height:100%;border-radius:99px;background:var(--c-teal)}
+.tacc .v{font:600 13px var(--round);color:var(--muted);font-variant-numeric:tabular-nums;min-width:86px;text-align:right}
+.miss{padding:10px 0;border-bottom:1px solid var(--sep);font-size:14px;line-height:1.45}.miss:last-child{border-bottom:0}
+.wcell .acc{font:600 13px var(--round);color:var(--muted);font-variant-numeric:tabular-nums}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="bg7" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2a95a6"/><stop offset="1" stop-color="#5a5fc4"/></linearGradient></defs><rect x="3" y="3" width="26" height="26" rx="7" fill="url(#bg7)"/><path d="M11 10.5h10l-5.6 12.5" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Parents
+    </div>
+    <span class="spacer"></span>
+    <span class="chip" id="sync" hidden></span>
+    <button class="chip" id="out" hidden>Log out</button>
+  </header>
+  <main id="view" style="margin-top:20px"></main>
+</div>
+<script src="core.js"></script>
+<script src="words7.js"></script>
+<script src="readings.js"></script>
+<script src="maths-bank.js"></script>
+<script src="maths.js"></script>
+<script>
+"use strict";
+const B=()=>Store.book;
+let err="", msg="", planDate=null, planTitle="", planTest=true, planDraft="", planOpen=null;
+Store.onStatus=s=>{const c=$("#sync");c.innerHTML=SYNC_TEXT[s]?`<i class="dot"></i>${SYNC_TEXT[s]}`:"";c.hidden=!Store.user||!SYNC_TEXT[s];c.className="chip "+(s==="saved"?"ok":/error|auth/.test(s)?"warn":"");};
+Store.onRemote=()=>{if(!document.activeElement||!/INPUT|TEXTAREA/.test(document.activeElement.tagName))render();};
+$("#out").onclick=()=>{const b=$("#out");if(!b.classList.contains("warn")){b.classList.add("warn");b.textContent="Tap again to log out";setTimeout(()=>{b.classList.remove("warn");b.textContent="Log out";},3000);return;}
+  b.classList.remove("warn");b.textContent="Log out";Store.logout();render();};
+
+function nextWeekday(dow){const d=new Date();const add=((dow-d.getDay())+7)%7||7;d.setDate(d.getDate()+add);return dstr(d);}
+const accuracy=w=>w.seen?Math.round((w.right||0)/w.seen*100):null;
+
+function render(){
+  const logged=!!B();
+  if(logged&&ensureWeekLists(B()))Store.save();
+  $("#out").hidden=!logged; if(!logged)$("#sync").hidden=true;
+  $("#view").innerHTML=logged?viewDash():viewLogin();
+  bind();
+}
+function viewLogin(){
+  return `<form class="card auth" id="authForm" style="margin-top:3vh">
+    <div class="badge lg">${ic("person")}</div>
+    <h2 style="font-size:30px">Parent login</h2>
+    <p class="muted" style="margin:0">Use your child’s username and password. Plan word lists for each study date and follow every word’s progress.</p>
+    <label>Child’s username<input type="text" id="aUser" autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="24" required></label>
+    <label>Password<input type="password" id="aPass" autocomplete="current-password" maxlength="64" required></label>
+    <div class="err">${esc(err)}</div>
+    <button class="btn primary big" type="submit" id="aGo">Log in</button>
+    <p class="muted small" style="margin:0;text-align:center">No account yet? <a href="./">Create it on the child’s page</a>.</p>
+  </form>`;
+}
+
+function readingBlock(){
+  const R=B().reading, t=today(), days=[...Array(14)].map((_,k)=>addDays(t,k-13));
+  const mins=d=>Math.floor(((R.log[d]||{}).secs||0)/60);
+  const mx=Math.max(10,...days.map(mins));
+  const week=days.slice(-7).reduce((a,d)=>a+mins(d),0), goalDays=days.slice(-7).filter(d=>mins(d)>=10).length;
+  const done=Object.entries(R.done).map(([id,v])=>({...v,r:READINGS.find(x=>x.id===id)})).filter(x=>x.r).sort((a,c)=>(c.u||0)-(a.u||0));
+  const looked=Object.values(R.looked).sort((a,c)=>(c.u||0)-(a.u||0)).slice(0,30);
+  return `<div class="card stack">
+    <div class="row" style="justify-content:space-between"><h3>Reading</h3><span class="muted small">${week} min this week · goal met ${goalDays} of 7 days</span></div>
+    <div class="act green">${days.map(d=>`<div title="${d}: ${mins(d)} min" style="height:${mins(d)/mx*100}%"></div>`).join("")}</div>
+    <div class="act-l">${days.map((d,i)=>`<span>${i%2?"":WEEK[pdate(d).getDay()][0]+pdate(d).getDate()}</span>`).join("")}</div>
+    <div class="muted small">Today ${mins(t)} of 10 minutes · ${done.length} of ${READINGS.length} articles finished</div>
+    ${done.length?`<div>${done.slice(0,6).map(x=>`<div class="rrow"><div><b>${esc(x.r.title)}</b><div class="muted tiny">${esc(x.r.kind)} · ${shortDate(x.date)}</div></div><span class="score ${x.score>=x.n-1?"good":x.score>=x.n-3?"ok":""}">${x.score}/${x.n}</span></div>`).join("")}</div>`:""}
+    ${looked.length?`<div><div class="muted small" style="margin-bottom:8px">Words looked up while reading</div><div class="words">${looked.map(l=>`<span class="w" title="${esc(l.def||"")}">${esc(l.w)}</span>`).join("")}</div></div>`:""}
+  </div>`;
+}
+
+function mathsBlock(){
+  const M=MB(), t=today(), days=[...Array(14)].map((_,k)=>addDays(t,k-13));
+  const sc=d=>M.days[d]?dayScore(M.days[d]):null;
+  const week=days.slice(-7).map(sc).filter(Boolean), wn=week.reduce((a,s)=>a+s.done,0), wr=week.reduce((a,s)=>a+s.right,0);
+  const ts=topicStats(), tops=MATHS_TOPICS.filter(x=>ts[x].n);
+  const miss=Object.entries(M.q).filter(([id,s])=>s.ok===false&&MQ[id]).sort((a,c)=>(c[1].u||0)-(a[1].u||0)).slice(0,8).map(([id])=>MQ[id]);
+  const today20=sc(t);
+  return `<div class="card stack">
+    <div class="row" style="justify-content:space-between"><h3>Maths</h3><span class="muted small">${wn?`${wr}/${wn} correct this week`:"No maths yet this week"}</span></div>
+    <div class="muted small">Today: ${today20&&today20.done?`${today20.done} of ${today20.n} answered, ${today20.right} correct`:"not started"} · ${Object.keys(M.q).length} of ${MATHS.length} bank questions tried</div>
+    <div class="act teal">${days.map(d=>{const s=sc(d);return `<div title="${d}: ${s?s.right+"/"+s.n+" correct":"no daily set"}" style="height:${s?s.right/MDAY*100:0}%"></div>`;}).join("")}</div>
+    <div class="act-l">${days.map((d,i)=>`<span>${i%2?"":WEEK[pdate(d).getDay()][0]+pdate(d).getDate()}</span>`).join("")}</div>
+    <div class="muted tiny">Bars show the daily ${MDAY}: correct answers out of ${MDAY}.</div>
+    ${tops.length?`<div><div class="muted small" style="margin-bottom:4px">Correct by topic</div>${tops.map(x=>{const s=ts[x],p=Math.round(s.r/s.n*100);return `<div class="tacc"><span>${esc(x)}</span><span class="bar"><i style="width:${p}%"></i></span><span class="v">${p}% · ${s.n} tried</span></div>`;}).join("")}</div>`:""}
+    ${miss.length?`<div><div class="muted small" style="margin-bottom:4px">Recent mistakes (these come back in later daily sets)</div>${miss.map(q=>`<div class="miss"><div>${mt(q.q)}</div><div class="muted small">${esc(q.t)} · answer <b>${esc(showAns(q))}</b></div></div>`).join("")}</div>`:""}
+  </div>`;
+}
+
+function listBlock(l){
+  const t=today(), ws=wordsIn(B(),l.date).slice().sort((a,b)=>a.w.localeCompare(b.w)), d=dayDiff(t,l.date);
+  const strong=ws.filter(w=>w.stage>=3).length, learned=ws.filter(w=>w.stage>0).length, mocks=l.mocks||[];
+  const od=dayDiff(t,openDay(l));
+  const st=od>0?`<span class="status lock">${ic("lock")}Opens ${esc(inDays(od))}</span>`:d===0?`<span class="status open">Today</span>`:d>0?`<span class="status open">Open</span>`:`<span class="status past">${esc(inDays(d))}</span>`;
+  const n=Math.max(1,ws.length), c=k=>ws.filter(w=>masteryOf(w)===k).length;
+  const open=d>=0&&d<=7||d===0;
+  return `<details class="card list" ${open?"open":""}>
+    <summary class="row" style="justify-content:space-between;flex-wrap:nowrap">
+      <div class="stack tight" style="gap:4px;min-width:0"><div class="row" style="gap:6px">${st}${l.test?`<span class="status test">Test</span>`:""}</div>
+        <h3>${esc(niceDate(l.date))}</h3>${l.test&&openDay(l)!==l.date?`<div class="muted tiny">Practice from ${esc(niceDate(openDay(l)))}</div>`:""}
+        <div class="muted small">${l.title?esc(l.title)+" · ":""}${ws.length} words · ${learned} learned · ${strong} strong${mocks.length?` · practice tests ${mocks.map(m=>Math.round(m.s/m.n*100)+"%").join(", ")}`:""}</div></div>
+      <span class="chev">${ic("chevron")}</span>
+    </summary>
+    <div class="stack" style="margin-top:16px">
+      <div class="meter"><i class="m1" style="width:${c("mastered")/n*100}%"></i><i class="m2" style="width:${c("strong")/n*100}%"></i><i class="m3" style="width:${c("learning")/n*100}%"></i></div>
+      <div class="wgrid">${ws.map(w=>{const a=accuracy(w);return `<div class="wcell"><i class="mdot ${masteryOf(w)}" title="${MASTERY_LABEL[masteryOf(w)]}"></i><span class="wt">${esc(w.w)}${w.def?`<span class="wdef">${esc(w.def)}</span>`:""}</span>
+        <span class="tools"><span class="acc" title="Right first time">${a==null?"–":a+"%"}</span><button class="icon-btn ghost" data-delw="${w.id}" aria-label="Delete ${esc(w.w)}">${ic("trash")}</button></span></div>`;}).join("")}</div>
+      <div class="legend"><span><i class="mdot mastered"></i>Mastered</span><span><i class="mdot strong"></i>Strong</span><span><i class="mdot learning"></i>Learning</span><span><i class="mdot"></i>New</span><span>% = right first time</span></div>
+      ${mocks.length?`<div class="small"><div class="muted" style="margin-bottom:4px">Practice tests</div>${mocks.slice().reverse().map(m=>`${esc(shortDate(m.d))}: ${m.s}/${m.n}${(m.wrong||[]).length?" · missed "+m.wrong.map(id=>B().words[id]?esc(B().words[id].w):"").filter(Boolean).join(", "):""}`).join("<br>")}</div>`:""}
+      <div class="row" style="justify-content:space-between">
+        <button class="btn grey" data-addto="${l.date}">${ic("plus")}Add words to this date</button>
+        <button class="btn red-text" data-dellist="${l.date}">Delete list</button></div>
+    </div>
+  </details>`;
+}
+
+function viewDash(){
+  const b=B(), ws=wordsOf(b), t=today(); planDate=planDate||nextWeekday(5);
+  const seen=ws.reduce((a,w)=>a+(w.seen||0),0), right=ws.reduce((a,w)=>a+(w.right||0),0);
+  const days=[...Array(14)].map((_,k)=>addDays(t,k-13));
+  const mx=Math.max(1,...days.map(d=>(b.log[d]||{}).done||0));
+  const ls=listsOf(b), upcoming=ls.filter(l=>l.date>=t), past=ls.filter(l=>l.date<t).reverse();
+  const quick=[[t,"Today"],[addDays(t,1),"Tomorrow"],...[1,2,3,4,5].map(k=>[nextWeekday(k),"Next "+WEEK[k]])].filter((x,i,a)=>a.findIndex(y=>y[0]===x[0])===i);
+  const existing=b.lists[planDate];
+  const isTest=existing?existing.test:planTest;
+  if(!planOpen||planOpen>planDate)planOpen=existing&&existing.open?existing.open:[addDays(planDate,-7),t].sort().pop();
+  if(planOpen>planDate)planOpen=planDate;
+  return `<div class="stack">
+    <div><div class="eyebrow">${esc(niceDate(t))}</div><h1>${esc(b.name)}</h1></div>
+    <div class="kpis">
+      <div class="kpi"><b>${streakOf(b.log)}</b><span>day streak</span></div>
+      <div class="kpi"><b>${(b.log[t]||{}).done||0}</b><span>words practised today</span></div>
+      <div class="kpi"><b>${ws.filter(w=>w.stage>=3).length}<span class="muted" style="font-size:16px"> / ${ws.length}</span></b><span>words strong or mastered</span></div>
+      <div class="kpi"><b>${seen?Math.round(right/seen*100)+"%":"–"}</b><span>right first time</span></div>
+    </div>
+
+    <div class="card stack" id="plan">
+      <h3>Plan a word list</h3>
+      <p class="muted small" style="margin:0">Each date has its own list. Lists for future dates stay locked until that day, and your child practises one list at a time.</p>
+      <label class="field">${isTest?"Test date":"Study date"}<input type="date" id="pDate" value="${planDate}"></label>
+      <div class="quick">${quick.map(([d,n])=>`<button class="${d===planDate?"on":""}" data-pdate="${d}">${n}</button>`).join("")}</div>
+      ${existing?`<div class="notice">There is already a list for ${esc(niceDate(planDate))} with ${wordsIn(b,planDate).length} words. New words will be added to it.</div>`:""}
+      <label class="field">Name (optional)<input type="text" id="pTitle" class="plain" placeholder="e.g. Week 5 spellings" maxlength="40" value="${esc(existing?existing.title:planTitle)}"></label>
+      <label class="toggle"><span>This is a dictation test<br><span class="muted tiny">Your child can start practising before the test day.</span></span><input type="checkbox" id="pTest" ${isTest?"checked":""}></label>
+      ${isTest?`<label class="field">Start practising on<input type="date" id="pOpen" value="${planOpen}" max="${planDate}"></label>
+        <div class="muted tiny">Before this day the list is locked. In the last week before the test every word is practised daily.</div>`:`<div class="muted tiny">${planDate>t?`The list stays locked until ${esc(niceDate(planDate))}.`:"The list is ready to study now."}</div>`}
+      <label class="field">Words, one per line or separated by commas<textarea id="pWords" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="confidential&#10;essential&#10;substantial">${esc(planDraft)}</textarea></label>
+      <div class="row" style="justify-content:space-between"><span class="muted small" id="pCount">${parseWords(planDraft).length} words</span><button class="btn primary big" id="pSave">${ic("plus")}Save to ${esc(shortDate(planDate))}</button></div>
+      ${msg?`<div class="notice">${msg}</div>`:""}
+    </div>
+
+    ${upcoming.length?`<div class="section"><div class="section-title"><h3>Today and coming up</h3><span class="muted small">${upcoming.length} list${upcoming.length===1?"":"s"}</span></div>${upcoming.map(listBlock).join("")}</div>`:""}
+    ${past.length?`<div class="section"><div class="section-title"><h3>Earlier lists</h3><span class="muted small">${past.length}</span></div>${past.map(listBlock).join("")}</div>`:""}
+
+    <div class="card stack">
+      <div class="row" style="justify-content:space-between"><h3>Spelling practice</h3><span class="muted small">last 14 days</span></div>
+      <div class="act">${days.map(d=>`<div title="${d}: ${(b.log[d]||{}).done||0} words" style="height:${((b.log[d]||{}).done||0)/mx*100}%"></div>`).join("")}</div>
+      <div class="act-l">${days.map((d,i)=>`<span>${i%2?"":WEEK[pdate(d).getDay()][0]+pdate(d).getDate()}</span>`).join("")}</div>
+    </div>
+    ${readingBlock()}
+    ${mathsBlock()}
+
+    <details class="card"><summary><b>Change password</b></summary>
+      <form class="stack" id="pwForm" style="margin-top:14px;gap:12px">
+        <label class="field">New password<input type="password" id="pw1" autocomplete="new-password" required></label>
+        <label class="field">New password again<input type="password" id="pw2" autocomplete="new-password" required></label>
+        <div class="err" id="pwMsg" style="color:var(--red)"></div>
+        <button class="btn" type="submit">Change password</button>
+      </form>
+    </details>
+  </div>`;
+}
+
+function bind(){
+  const f=$("#authForm");
+  if(f)f.onsubmit=async e=>{
+    e.preventDefault();const u=$("#aUser").value.trim(),p=$("#aPass").value;
+    const btn=$("#aGo");btn.disabled=true;btn.textContent="Please wait…";
+    try{await Store.open(u,p,false);err="";render();}catch(x){err=authMsg(x);render();$("#aUser").value=u;}
+  };
+  const keep=()=>{const ti=$("#pTitle"),te=$("#pTest"),w=$("#pWords"),po=$("#pOpen");if(ti)planTitle=ti.value;if(te)planTest=te.checked;if(w)planDraft=w.value;if(po&&po.value)planOpen=po.value;};
+  const pd=$("#pDate"); if(pd)pd.onchange=()=>{keep();if(pd.value){planDate=pd.value;planOpen=null;msg="";render();}};
+  document.querySelectorAll("[data-pdate]").forEach(b=>b.onclick=()=>{keep();planDate=b.dataset.pdate;planOpen=null;msg="";render();});
+  const pt=$("#pTest"); if(pt)pt.onchange=()=>{keep();const ex=B().lists[planDate];if(ex){ex.test=pt.checked;ex.open=pt.checked?(ex.open||planOpen):planDate;ex.u=Date.now();Store.save();}render();};
+  const po=$("#pOpen"); if(po)po.onchange=()=>{keep();const ex=B().lists[planDate];if(ex&&ex.test&&po.value){ex.open=po.value>planDate?planDate:po.value;ex.u=Date.now();Store.save();}};
+  const pw=$("#pWords"); if(pw)pw.oninput=()=>{planDraft=pw.value;$("#pCount").textContent=parseWords(pw.value).length+" words";};
+  const ps=$("#pSave");
+  if(ps)ps.onclick=()=>{
+    keep();
+    const list=parseWords(planDraft);
+    if(!list.length){msg="Type at least one English word.";render();return;}
+    const r=addWordsToBook(B(),list,{date:planDate,title:planTitle.trim(),test:planTest,open:planTest?planOpen:planDate});
+    Store.save();
+    msg=`Saved ${r.added.length} word${r.added.length===1?"":"s"} to ${esc(niceDate(planDate))}`+(r.reused.length?` (${r.reused.length} already there)`:"")+(openDay(B().lists[planDate])>today()?`. The list unlocks on ${esc(niceDate(openDay(B().lists[planDate])))}.`:".");
+    planDraft="";planTitle="";render();
+  };
+  document.querySelectorAll("[data-addto]").forEach(b=>b.onclick=()=>{planDate=b.dataset.addto;msg="";render();$("#plan").scrollIntoView({behavior:"smooth"});setTimeout(()=>$("#pWords").focus(),400);});
+  document.querySelectorAll("[data-delw]").forEach(b=>b.onclick=e=>{
+    e.preventDefault();
+    if(!b.classList.contains("confirm")){b.classList.add("confirm");b.classList.remove("ghost");b.textContent="Delete";setTimeout(()=>{if(document.body.contains(b)){b.classList.remove("confirm");b.classList.add("ghost");b.innerHTML=ic("trash");}},3000);return;}
+    deleteWord(B(),b.dataset.delw);Store.save();render();});
+  document.querySelectorAll("[data-dellist]").forEach(b=>b.onclick=()=>{
+    if(!b.classList.contains("danger")){b.classList.add("danger");b.textContent="Tap again to delete this list";setTimeout(()=>{if(document.body.contains(b)){b.classList.remove("danger");b.textContent="Delete list";}},3500);return;}
+    deleteList(B(),b.dataset.dellist);Store.save();render();});
+  const pf=$("#pwForm");
+  if(pf)pf.onsubmit=async e=>{
+    e.preventDefault();const a=$("#pw1").value,c=$("#pw2").value;
+    if(a!==c){$("#pwMsg").textContent="The two passwords are different.";return;}
+    try{await WS.changePassword(Store.user,Store.pass,a);Store.pass=a;saveSession(Store.user,a);$("#pwMsg").style.color="var(--green)";$("#pwMsg").textContent="Password changed. Use the new one on the iPad too.";pf.reset();}
+    catch(x){$("#pwMsg").textContent=authMsg(x);}
+  };
+}
+
+render();
+(async()=>{
+  const s=loadSession(); if(!s)return;
+  try{await Store.open(s.user,s.pass,false);render();}
+  catch(e){err=e.message==="bad_login"?"Please log in again.":authMsg(e);if(e.message==="bad_login")clearSession();render();}
+})();
+</script>
+</body>
+</html>
