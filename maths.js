@@ -162,6 +162,11 @@ function mFig(f){
 }
 
 /* ---------- Maths tab ---------- */
+// "Brush up" topics (primes, factors, rounding, place value, numbers in words, fractions) come from maths-review.js
+const REVIEW_SET=typeof REVIEW_TOPICS!=="undefined"?REVIEW_TOPICS:[];
+const topicTile=(t,s)=>`<button class="topic" data-maths="topic" data-topic="${esc(t)}" style="--tc:${topicColor(t)}">
+      <b>${esc(t)}</b><span class="muted small">${s.n?`${Math.round(s.r/s.n*100)}% correct · `:""}${s.seen} of ${s.total} done</span>
+      <span class="bar"><i style="width:${s.seen/s.total*100}%"></i></span></button>`;
 function mathsCard(){
   const t=today(), d=dailySet(t,false), sc=d?dayScore(d):{done:0,right:0,n:MDAY}, p=Math.round(sc.done/sc.n*100);
   return `<div class="card maths-card">
@@ -193,10 +198,10 @@ function viewMaths(){
       <div class="kpi"><b>${total?Math.round(right/total*100)+"%":"–"}</b><span>correct</span></div>
       <div class="kpi"><b>${seen}<small>/${MATHS.length}</small></b><span>of the question bank</span></div>
     </div>
-    <div class="section-title"><h3 style="margin:0">Practise a topic</h3><span class="muted small">${MTOPIC} questions at a time</span></div>
-    <div class="topics">${MATHS_TOPICS.map(t=>{const s=ts[t];return `<button class="topic" data-maths="topic" data-topic="${esc(t)}" style="--tc:${topicColor(t)}">
-      <b>${esc(t)}</b><span class="muted small">${s.n?`${Math.round(s.r/s.n*100)}% correct · `:""}${s.seen} of ${s.total} done</span>
-      <span class="bar"><i style="width:${s.seen/s.total*100}%"></i></span></button>`;}).join("")}</div>
+    ${REVIEW_SET.length?`<div class="section-title"><h3 style="margin:0">Brush up</h3><span class="muted small">Number skills from earlier years · ${MTOPIC} questions at a time</span></div>
+    <div class="topics">${REVIEW_SET.map(t=>topicTile(t,ts[t])).join("")}</div>`:""}
+    <div class="section-title"><h3 style="margin:0">Practise a Year 7 topic</h3><span class="muted small">${MTOPIC} questions at a time</span></div>
+    <div class="topics">${MATHS_TOPICS.filter(t=>!REVIEW_SET.includes(t)).map(t=>topicTile(t,ts[t])).join("")}</div>
   </div>`;
 }
 function bindMaths(){
