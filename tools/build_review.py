@@ -175,13 +175,13 @@ def rd_which():
     if good == target: return
     wrong = [target + p // 2 + R.randint(0, p // 2 - 1), target - p // 2 - R.randint(1, p // 2), target + p + R.randint(0, p // 2 - 1), target - p - R.randint(0, p // 2)]
     wrong = [w for w in wrong if round_half_up(w, p) != target]
-    mc(T3, f"Round to the nearest {p:,}", f"Which number rounds to {fmt(target)} when rounded to the nearest {p:,}?", fmt(good), [fmt(w) for w in wrong],
+    mc(T3, "Reason about rounding", f"Which number rounds to {fmt(target)} when rounded to the nearest {p:,}?", fmt(good), [fmt(w) for w in wrong],
        f"Numbers from {fmt(target - p // 2)} up to {fmt(target + p // 2 - 1)} round to {fmt(target)}. {fmt(good)} is in that range.")
 def rd_bounds():
     p = R.choice([10, 100, 1000]); target = R.randint(2, 90) * p
     small = R.choice([True, False])
     ans = target - p // 2 if small else target + p // 2 - 1
-    add(T3, f"Round to the nearest {p:,}", f"A whole number rounds to {fmt(target)} to the nearest {p:,}. What is the {'smallest' if small else 'largest'} it could be?", "n", ans,
+    add(T3, "Reason about rounding", f"A whole number rounds to {fmt(target)} to the nearest {p:,}. What is the {'smallest' if small else 'largest'} it could be?", "n", ans,
         f"Halfway between {fmt(target - p)} and {fmt(target)} is {fmt(target - p // 2)}, and halfway rounds up. So the numbers that round to {fmt(target)} go from {fmt(target - p // 2)} to {fmt(target + p // 2 - 1)}.")
 def rd_three():
     n = R.randint(10000, 99999)
