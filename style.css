@@ -572,3 +572,8 @@ body[data-sec="maths"]{--sec:var(--c-teal)}
 /* practise a single word from a word list */
 .wprac{font:600 13px var(--body);color:var(--ink-text);background:var(--ink-soft);border:0;border-radius:99px;padding:6px 12px;margin-left:4px;cursor:pointer;white-space:nowrap}
 .wprac:active{transform:scale(.96)}
+
+/* No zooming on iPad: no double-tap zoom anywhere, and form fields at 16px or more (smaller ones make Safari zoom in when tapped) */
+html,body{touch-action:manipulation}
+button,a,label,input,select,textarea,[role="button"]{touch-action:manipulation}
+input,select,textarea{font-size:max(16px,1em)}
