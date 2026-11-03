@@ -102,6 +102,7 @@ function lbl(cx,cy,r,a,t,cls=""){const [x,y]=P(cx,cy,r,a);return `<text x="${x.t
 function ray(cx,cy,r,a){const [x,y]=P(cx,cy,r,a);return `<line x1="${cx}" y1="${cy}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="stroke"/>`;}
 function mFig(f){
   if(!f)return "";
+  if(String(f.t).startsWith("p-"))return paperFig(f); // test paper figures (paper.js)
   if(f.t==="table")return `<div class="m-table"><table><thead><tr>${f.head.map(h=>`<th>${esc(h)}</th>`).join("")}</tr></thead><tbody>${f.rows.map(r=>`<tr>${r.map(c=>`<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>`;
   let s="", vb="0 0 300 220";
   if(f.t==="fracbar"){
@@ -188,7 +189,7 @@ function viewMaths(){
   const t=today(), d=dailySet(t), sc=dayScore(d), M=MB(), ts=topicStats();
   const week=[...Array(7)].map((_,k)=>addDays(t,k-6));
   const total=Object.values(M.log).reduce((s,x)=>s+(x.n||0),0), right=Object.values(M.log).reduce((s,x)=>s+(x.r||0),0);
-  const seen=Object.keys(M.q).length;
+  const seen=Object.keys(M.q).filter(id=>MQ[id]).length; // only bank questions (not "p:" test-paper summaries)
   return `<div class="stack">
     <div class="page-head"><div><div class="eyebrow">Maths · Year 7</div><h1>Daily maths</h1></div></div>
     <div class="card maths-hero">
@@ -207,11 +208,13 @@ function viewMaths(){
     </div>
     ${REVIEW_SET.length?`<div class="section-title"><h3 style="margin:0">Brush up</h3><span class="muted small">Number skills from earlier years · ${MTOPIC} questions at a time</span></div>
     <div class="topics">${REVIEW_SET.map(t=>topicTile(t,ts[t])).join("")}</div>`:""}
+    ${paperSection()}
     <div class="section-title"><h3 style="margin:0">Practise a Year 7 topic</h3><span class="muted small">${MTOPIC} questions at a time</span></div>
     <div class="topics">${MATHS_TOPICS.filter(t=>!REVIEW_SET.includes(t)).map(t=>topicTile(t,ts[t])).join("")}</div>
   </div>`;
 }
 function bindMaths(){
+  bindPaper();
   document.querySelectorAll("#view [data-maths]").forEach(b=>b.onclick=()=>{
     if(b.dataset.maths==="day"){const d=dailySet(today());openMaths({kind:"day",date:today(),ids:d.ids});}
     else openMaths({kind:"topic",topic:b.dataset.topic,ids:topicSet(b.dataset.topic)});
@@ -261,9 +264,11 @@ function renderMQ(){
 }
 function feedback(q){
   const st=MS.state;
-  if(st==="retry")return `<div class="mfb warn">${ic("x")}<div><b>Not quite. Have another go.</b><span>Read the question again carefully.</span></div></div>`;
-  if(st==="right")return `<div class="mfb ok">${ic("check")}<div><b>${MS.tries>1?"Correct on your second try!":"Correct!"}</b><span>${mt(q.w)}</span></div></div><button class="btn primary big" id="mNext">${MS.i+1<MS.ids.length?"Next question":"See results"}</button>`;
-  if(st==="shown")return `<div class="mfb bad">${ic("x")}<div><b>The answer is ${esc(showAns(q))}</b><span>${mt(q.w)}</span></div></div><button class="btn primary big" id="mNext">${MS.i+1<MS.ids.length?"Next question":"See results"}</button>`;
+  // questions with step-by-step working: a wrong try shows the first steps, a second wrong try shows them all
+  const hint=q.steps&&q.steps.length>1?`<div class="p-hint"><b>Here is how to start:</b>${stepsHtml(q.steps.slice(0,-1))}</div>`:"";
+  if(st==="retry")return `<div class="mfb warn">${ic("x")}<div><b>Not quite. Have another go.</b><span>${q.steps?"Follow these steps, then try again.":"Read the question again carefully."}</span></div></div>${hint}`;
+  if(st==="right")return `<div class="mfb ok">${ic("check")}<div><b>${MS.tries>1?"Correct on your second try!":"Correct!"}</b><span>${mt(q.w)}</span></div></div>${q.steps?`<details class="p-more"><summary>See the working</summary>${stepsHtml(q.steps)}</details>`:""}<button class="btn primary big" id="mNext">${MS.i+1<MS.ids.length?"Next question":"See results"}</button>`;
+  if(st==="shown")return `<div class="mfb bad">${ic("x")}<div><b>The answer is ${esc(showAns(q))}</b><span>${q.steps?"Here is how to work it out, step by step:":mt(q.w)}</span></div></div>${q.steps?stepsHtml(q.steps,"show"):""}<button class="btn primary big" id="mNext">${MS.i+1<MS.ids.length?"Next question":"See results"}</button>`;
   return "";
 }
 function press(k){
@@ -288,8 +293,8 @@ function answer(q,v){
   renderMQ();
 }
 function record(q,ok,given){
-  const M=MB(), t=today(), s=M.q[q.id]||{};
-  M.q[q.id]={n:(s.n||0)+1,r:(s.r||0)+(ok?1:0),ok,last:t,u:Date.now()};
+  const M=MB(), t=today(), key=q.gen?"p:"+q.gen:q.id, s=M.q[key]||{}; // generated questions keep one record per type
+  M.q[key]={n:(s.n||0)+1,r:(s.r||0)+(ok?1:0),ok,last:t,u:Date.now()};
   const L=M.log[t]=M.log[t]||{n:0,r:0}; L.n++; if(ok)L.r++;
   if(MS.kind==="day"){const d=M.days[MS.date];d.ans[q.id]={v:String(given).slice(0,20),ok,tries:MS.tries};d.u=Date.now();}
   MS.res[q.id]=ok; Store.save();
@@ -303,7 +308,7 @@ function renderMResults(){
     <div class="stars">${"★".repeat(stars)}${"☆".repeat(3-stars)}</div>
     <h2>${right} out of ${n} correct</h2>
     <p class="muted">${pct>=.9?"Superb work!":pct>=.7?"Great effort. Check the ones you missed below.":pct>=.4?"Good try. Read through the working for the ones you missed.":"Keep going. Every question you try helps you learn."}${MS.kind==="day"?" Questions you got wrong will come back on another day.":""}</p>
-    <div class="group">${ids.map(id=>{const q=MQ[id],ok=MS.res[id];return `<div class="cell m-row"><div class="badge ${ok?"green":"red"}">${ic(ok?"check":"x")}</div><div class="grow"><div class="ttl">${mt(q.q)}</div>${ok?"":`<div class="sub">Answer: <b>${esc(showAns(q))}</b> · ${mt(q.w)}</div>`}</div></div>`;}).join("")}</div>
+    <div class="group">${ids.map(id=>{const q=MQ[id],ok=MS.res[id];return `<div class="cell m-row"><div class="badge ${ok?"green":"red"}">${ic(ok?"check":"x")}</div><div class="grow"><div class="ttl">${mt(q.q)}</div>${ok?"":`<div class="sub">Answer: <b>${esc(showAns(q))}</b> · ${q.steps?stepsHtml(q.steps):mt(q.w)}</div>`}</div></div>`;}).join("")}</div>
     <button class="btn primary big" id="mDone">Done</button>
   </div>`;
   $("#mDone").onclick=closeMaths;

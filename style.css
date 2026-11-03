@@ -577,3 +577,25 @@ body[data-sec="maths"]{--sec:var(--c-teal)}
 html,body{touch-action:manipulation}
 button,a,label,input,select,textarea,[role="button"]{touch-action:manipulation}
 input,select,textarea{font-size:max(16px,1em)}
+
+/* ================= Test paper practice ================= */
+.p-fig{max-width:520px}
+.p-fig .p-s0{fill:var(--c-blue)} .p-fig .p-s1{fill:color-mix(in srgb,var(--c-orange) 75%,var(--paper))}
+.p-fig .p-hb{stroke:var(--paper);stroke-width:1.5}
+.p-fig .grid{stroke:var(--sep);stroke-width:1} .p-fig .axis{stroke:var(--fg);stroke-width:1.5}
+.p-fig .tick{font-size:12px;fill:var(--muted)} .p-fig .ttl{font-size:14px;font-weight:600;fill:var(--fg)}
+.p-fig .p-box{fill:none;stroke:var(--line);stroke-width:2}
+.p-fig .p-c0,.p-fig .p-c1,.p-fig .p-c2{fill-opacity:.12;stroke-width:2.5}
+.p-fig .p-c0{fill:var(--c-blue);stroke:var(--c-blue)} .p-fig .p-c1{fill:var(--c-orange);stroke:var(--c-orange)} .p-fig .p-c2{fill:var(--c-green);stroke:var(--c-green)}
+.p-fig .p-reg{font:700 18px var(--round);fill:var(--fg)}
+.p-tal{stroke:var(--fg);stroke-width:2;stroke-linecap:round;vertical-align:middle}
+.p-steps{margin:10px 0 0;padding-left:24px;display:flex;flex-direction:column;gap:8px;text-align:left;font:17px/1.5 var(--round)}
+.p-steps li{padding:8px 12px;border-radius:12px;background:var(--raised)}
+.p-steps.show li{opacity:0;animation:pStep .4s ease forwards;animation-delay:var(--d)}
+@keyframes pStep{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+.p-steps li:last-child{font-weight:600}
+.p-hint{margin-top:10px;text-align:left}
+.p-hint .p-steps li:last-child{font-weight:400}
+.p-more{margin-top:8px;text-align:left}
+.p-more summary{cursor:pointer;color:var(--ink-text);font-weight:600}
+@media (prefers-reduced-motion:reduce){.p-steps.show li{animation:none;opacity:1}}
