@@ -260,4 +260,4 @@ function paperFig(f){
 }
 
 /* ---------- step-by-step working ---------- */
-function stepsHtml(steps,cls=""){return `<ol class="p-steps ${cls}">${steps.map((t,i)=>`<li style="--d:${i*.35}s">${mt(t)}</li>`).join("")}</ol>`;}
+

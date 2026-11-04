@@ -255,6 +255,7 @@ function renderMQ(){
   </div>`;
   $("#mSay").onclick=()=>sayMaths(q.q,$("#mSay"));
   $("#mZh").onclick=()=>{zhToggle();renderMQ();};
+  bindExplain(body,renderMQ);
   zhFill(body);
   body.querySelectorAll("[data-opt]").forEach(b=>b.onclick=()=>answer(q,+b.dataset.opt));
   body.querySelectorAll("[data-key]").forEach(b=>b.onclick=()=>press(b.dataset.key));
@@ -262,13 +263,11 @@ function renderMQ(){
   const nx=$("#mNext"); if(nx){nx.onclick=nextQ;nx.focus({preventScroll:true});}
 }
 function feedback(q){
-  const st=MS.state;
-  // questions with step-by-step working: a wrong try shows the first steps, a second wrong try shows them all
-  const hint=q.steps&&q.steps.length>1?`<div class="p-hint"><b>Here is how to start:</b>${stepsHtml(q.steps.slice(0,-1))}</div>`:"";
-  if(st==="retry")return `<div class="mfb warn">${ic("x")}<div><b>Not quite. Have another go.</b><span>${q.steps?"Follow these steps, then try again.":"Read the question again carefully."}</span></div></div>${hint}`;
-  if(st==="right")return `<div class="mfb ok">${ic("check")}<div><b>${MS.tries>1?"Correct on your second try!":"Correct!"}</b><span>${mt(q.w)}</span></div></div>${q.steps?`<details class="p-more"><summary>See the working</summary>${stepsHtml(q.steps)}</details>`:""}<button class="btn primary big" id="mNext">${MS.i+1<MS.ids.length?"Next question":"See results"}</button>`;
-  if(st==="shown")return `<div class="mfb bad">${ic("x")}<div><b>The answer is ${esc(showAns(q))}</b><span>${q.steps?"Here is how to work it out, step by step:":mt(q.w)}</span></div></div>${q.steps?stepsHtml(q.steps,"show"):""}<button class="btn primary big" id="mNext">${MS.i+1<MS.ids.length?"Next question":"See results"}</button>`;
-  return "";
+  const st=MS.state, nx=`<button class="btn primary big" id="mNext">${MS.i+1<MS.ids.length?"Next question":"See results"}</button>`;
+  if(st==="retry")return `<div class="mfb warn">${ic("x")}<div><b>Not quite. Have another go.</b><span>Stuck? Tap 答疑 for help, one step at a time.</span></div></div>${explainBox(q,false)}`;
+  if(st==="right")return `<div class="mfb ok">${ic("check")}<div><b>${MS.tries>1?"Correct on your second try!":"Correct!"}</b><span>${mt(q.w)}</span></div></div>${explainBox(q,true)}${nx}`;
+  if(st==="shown")return `<div class="mfb bad">${ic("x")}<div><b>The answer is ${esc(showAns(q))}</b><span>Here is how to work it out, step by step:</span></div></div>${explainBox(q,true)}${nx}`;
+  return MS.kind==="test"?"":explainBox(q,false); // before answering: help with the method only (not in a check-up)
 }
 function press(k){
   if(!MS||MS.state==="right"||MS.state==="shown")return;
@@ -285,9 +284,9 @@ function press(k){
 function answer(q,v){
   const ok=q.k==="c"?v===q.a:checkAns(q,v);
   MS.tries++;
-  if(ok){MS.state="right";beep(true,false);}
+  if(ok){MS.state="right";MS.exp=0;beep(true,false);}
   else if(MS.tries<2){MS.state="retry";beep(false);if(q.k==="c")MS.wrongPick.push(v);else MS.input="";renderMQ();return;}
-  else{MS.state="shown";beep(false);if(q.k==="c")MS.wrongPick.push(v);}
+  else{MS.state="shown";MS.exp=99;beep(false);if(q.k==="c")MS.wrongPick.push(v);}
   record(q,ok,q.k==="c"?q.c[v]:v);
   renderMQ();
 }
@@ -298,7 +297,7 @@ function record(q,ok,given){
   if(MS.kind==="day"){const d=M.days[MS.date];d.ans[q.id]={v:String(given).slice(0,20),ok,tries:MS.tries};d.u=Date.now();}
   MS.res[q.id]=ok; Store.save();
 }
-function nextQ(){MS.i++;MS.tries=0;MS.input="";MS.state="ask";MS.wrongPick=[];renderMQ();window.scrollTo(0,0);$("#mBody").scrollTop=0;}
+function nextQ(){MS.i++;MS.exp=0;MS.tries=0;MS.input="";MS.state="ask";MS.wrongPick=[];renderMQ();window.scrollTo(0,0);$("#mBody").scrollTop=0;}
 function renderMResults(){
   const ids=MS.ids, right=ids.filter(id=>MS.res[id]).length, n=ids.length, pct=right/n;
   const stars=pct>=.9?3:pct>=.7?2:pct>=.4?1:0;
@@ -307,10 +306,11 @@ function renderMResults(){
     <div class="stars">${"★".repeat(stars)}${"☆".repeat(3-stars)}</div>
     <h2>${right} out of ${n} correct</h2>
     <p class="muted">${pct>=.9?"Superb work!":pct>=.7?"Great effort. Check the ones you missed below.":pct>=.4?"Good try. Read through the working for the ones you missed.":"Keep going. Every question you try helps you learn."}${MS.kind==="day"?" Questions you got wrong will come back on another day.":""}</p>
-    <div class="group">${ids.map(id=>{const q=MQ[id],ok=MS.res[id];return `<div class="cell m-row"><div class="badge ${ok?"green":"red"}">${ic(ok?"check":"x")}</div><div class="grow"><div class="ttl">${mt(q.q)}</div>${ok?"":`<div class="sub">Answer: <b>${esc(showAns(q))}</b> · ${q.steps?stepsHtml(q.steps):mt(q.w)}</div>`}</div></div>`;}).join("")}</div>
+    <div class="group">${ids.map(id=>{const q=MQ[id],ok=MS.res[id];return `<div class="cell m-row"><div class="badge ${ok?"green":"red"}">${ic(ok?"check":"x")}</div><div class="grow"><div class="ttl">${mt(q.q)}</div>${ok?"":`<div class="sub">Answer: <b>${esc(showAns(q))}</b></div>`}${resultSteps(q)}</div></div>`;}).join("")}</div>
     <button class="btn primary big" id="mDone">Done</button>
   </div>`;
   $("#mDone").onclick=closeMaths;
+  zhFill($("#mBody"));
 }
 document.addEventListener("keydown",e=>{
   if(!MS||$("#maths").hidden||e.metaKey||e.ctrlKey)return;

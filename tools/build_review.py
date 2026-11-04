@@ -4,7 +4,7 @@ Prime numbers, factors, rounding to 10/100/1,000, numbers in words, place value 
 fraction operations. Every answer is computed here. Run from the repo root: python3 tools/build_review.py
 The questions are added to the main bank (MATHS) in the browser, with ids r0001… so the 3,000
 Year 7 questions keep their ids."""
-import json, math, random
+import json, math, random, os
 from collections import Counter
 from fractions import Fraction
 
@@ -32,19 +32,21 @@ def pf(n):
         d += 1
     return out
 
-def add(topic, obj, q, kind, ans, why, opts=None):
+STEPS = {}
+def add(topic, obj, q, kind, ans, why, opts=None, steps=None):
     if q in SEEN: return False
     SEEN.add(q)
+    if steps: STEPS[q + "null"] = [s for s in steps if s]
     d = {"t": topic, "o": obj, "q": q, "k": kind, "a": ans, "w": why}
     if opts is not None: d["c"] = opts
     BANK.append(d)
     return True
-def mc(topic, obj, q, correct, wrong, why):
+def mc(topic, obj, q, correct, wrong, why, steps=None):
     wrong = [w for w in dict.fromkeys(wrong) if w != correct][:3]
     if len(wrong) < 3: return False
     opts = [correct] + wrong
     R.shuffle(opts)
-    return add(topic, obj, q, "c", opts.index(correct), why, opts=opts)
+    return add(topic, obj, q, "c", opts.index(correct), why, opts=opts, steps=steps)
 
 # =============================== Prime numbers ===============================
 T = "Prime numbers"
@@ -67,7 +69,10 @@ def pr_isit():
     yes = is_prime(n)
     add(T, "Decide whether a number is prime", f"Is {n} a prime number?", "c", 0 if yes else 1,
         (f"Yes. {n} is only divisible by 1 and {n}. Check: it does not divide by 2, 3, 5 or 7." if yes and n > 7 else f"Yes. {n} has exactly two factors, 1 and {n}." if yes
-         else "No. " + why_not_prime(n)), opts=["Yes", "No"])
+         else "No. " + why_not_prime(n)), opts=["Yes", "No"],
+        steps=["A prime number has exactly two factors: 1 and itself. (1 is not prime.)",
+               f"Try dividing {n} by the primes up to √{n} ≈ {int(n**.5)}: " + (", ".join(f"÷{d} {'✓' if n % d == 0 else '✗'}" for d in [p for p in PRIMES if p * p <= n]) or "there are none to try") + "." if n > 1 else "1 has only one factor.",
+               (f"Nothing divides exactly, so {n} has only the factors 1 and {n}." if yes else why_not_prime(n)), f"So the answer is {'Yes' if yes else 'No'}."])
 def pr_next():
     n = R.randint(1, 140); p = next(q for q in PRIMES if q > n)
     skipped = [x for x in range(n + 1, p)]
@@ -96,7 +101,8 @@ def pr_factor():
 def pr_sum():
     a = R.randint(1, 40); b = a + R.randint(6, 14); ps = [p for p in PRIMES if a <= p <= b]
     if not ps: return
-    add(T, "Find prime numbers", f"Add together all the prime numbers from {a} to {b}.", "n", sum(ps), f"The primes are {', '.join(map(str, ps))}. {' + '.join(map(str, ps))} = {sum(ps)}.")
+    add(T, "Find prime numbers", f"Add together all the prime numbers from {a} to {b}.", "n", sum(ps), f"The primes are {', '.join(map(str, ps))}. {' + '.join(map(str, ps))} = {sum(ps)}.",
+        steps=[f"List the numbers from {a} to {b} and cross out the ones with other factors.", "Not prime: " + ", ".join(f"{x}" for x in range(max(a, 1), b + 1) if not is_prime(x)) + ".", f"The primes are {', '.join(map(str, ps))}.", f"Add them: {' + '.join(map(str, ps))} = {sum(ps)}."])
 PRIME_FNS = [pr_which, pr_which, pr_not, pr_isit, pr_isit, pr_next, pr_count, pr_list, pr_factor, pr_sum]
 
 # =============================== Factors ===============================
@@ -125,7 +131,8 @@ def fa_pair():
     add(T2, "Find factor pairs", f"{a} × ? = {n}. What is the missing number?", "n", n // a, f"{n} ÷ {a} = {n // a}, so {a} × {n // a} = {n}. {a} and {n // a} are a factor pair of {n}.")
 def fa_largest():
     n = R.choice(RICH); fs = factors(n)
-    add(T2, "Recognise factors", f"What is the largest factor of {n}, apart from {n} itself?", "n", fs[-2], f"The smallest factor bigger than 1 is {fs[1]}, so the largest one below {n} is {n} ÷ {fs[1]} = {fs[-2]}.")
+    add(T2, "Recognise factors", f"What is the largest factor of {n}, apart from {n} itself?", "n", fs[-2], f"The smallest factor bigger than 1 is {fs[1]}, so the largest one below {n} is {n} ÷ {fs[1]} = {fs[-2]}.",
+        steps=["Factors come in pairs: the smallest factor pairs with the largest.", f"The smallest factor bigger than 1: {fs[1]} ({n} ÷ {fs[1]} works).", f"Its partner: {n} ÷ {fs[1]} = {fs[-2]}.", f"So the largest factor below {n} is {fs[-2]}."])
 def fa_pf():
     n = R.choice([x for x in RICH if len(pf(x)) >= 3]); fs = pf(n); right = " × ".join(map(str, fs))
     wrong = set()
@@ -167,7 +174,10 @@ def rd_basic():
     if r == n: return
     big, small = COL[p]; d = (n // (p // 10)) % 10
     add(T3, f"Round to the nearest {p:,}", f"Round {fmt(n)} to the nearest {p:,}.", "n", r,
-        f"Look at the {small} digit: it is {d}. {'5 or more, so round up' if d >= 5 else 'Less than 5, so round down'}: {fmt(n)} → {fmt(r)}." + (" The 9s roll over into the next column." if kind == "carry" and d >= 5 else ""))
+        f"Look at the {small} digit: it is {d}. {'5 or more, so round up' if d >= 5 else 'Less than 5, so round down'}: {fmt(n)} → {fmt(r)}." + (" The 9s roll over into the next column." if kind == "carry" and d >= 5 else ""),
+        steps=[f"Rounding to the nearest {p:,}: the two possible answers are {fmt(n // p * p)} and {fmt(n // p * p + p)}.", f"Look at the digit just to the right of the {big} column — the {small} digit: in {fmt(n)} it is {d}.",
+               ("5 or more, so round up to the bigger one." if d >= 5 else "Less than 5, so round down to the smaller one.") + (" The 9s roll over into the next column." if kind == "carry" and d >= 5 else ""),
+               f"Everything after the {big} column becomes 0: {fmt(n)} → {fmt(r)}."])
 def rd_which():
     p = R.choice([10, 100, 1000]); target = R.randint(3, 99) * p * (10 if p == 1000 else 1)
     target = target // p * p
@@ -176,13 +186,17 @@ def rd_which():
     wrong = [target + p // 2 + R.randint(0, p // 2 - 1), target - p // 2 - R.randint(1, p // 2), target + p + R.randint(0, p // 2 - 1), target - p - R.randint(0, p // 2)]
     wrong = [w for w in wrong if round_half_up(w, p) != target]
     mc(T3, "Reason about rounding", f"Which number rounds to {fmt(target)} when rounded to the nearest {p:,}?", fmt(good), [fmt(w) for w in wrong],
-       f"Numbers from {fmt(target - p // 2)} up to {fmt(target + p // 2 - 1)} round to {fmt(target)}. {fmt(good)} is in that range.")
+       f"Numbers from {fmt(target - p // 2)} up to {fmt(target + p // 2 - 1)} round to {fmt(target)}. {fmt(good)} is in that range.",
+       steps=[f"Which numbers round to {fmt(target)}? Go half of {p:,} = {p//2:,} down and up from it.", f"Halfway down is {fmt(target - p // 2)} (it rounds up, so it counts). Halfway up is {fmt(target + p // 2)} (it rounds up to {fmt(target + p)}, so it does not).",
+              f"So the numbers from {fmt(target - p // 2)} to {fmt(target + p // 2 - 1)} round to {fmt(target)}.", f"Only {fmt(good)} is in that range."])
 def rd_bounds():
     p = R.choice([10, 100, 1000]); target = R.randint(2, 90) * p
     small = R.choice([True, False])
     ans = target - p // 2 if small else target + p // 2 - 1
     add(T3, "Reason about rounding", f"A whole number rounds to {fmt(target)} to the nearest {p:,}. What is the {'smallest' if small else 'largest'} it could be?", "n", ans,
-        f"Halfway between {fmt(target - p)} and {fmt(target)} is {fmt(target - p // 2)}, and halfway rounds up. So the numbers that round to {fmt(target)} go from {fmt(target - p // 2)} to {fmt(target + p // 2 - 1)}.")
+        f"Halfway between {fmt(target - p)} and {fmt(target)} is {fmt(target - p // 2)}, and halfway rounds up. So the numbers that round to {fmt(target)} go from {fmt(target - p // 2)} to {fmt(target + p // 2 - 1)}.",
+        steps=[f"The numbers next to {fmt(target)} on the {p:,} number line are {fmt(target - p)} and {fmt(target + p)}.", f"Halfway down: {fmt(target - p // 2)}. A halfway number rounds up, so {fmt(target - p // 2)} rounds to {fmt(target)}.",
+               f"Halfway up: {fmt(target + p // 2)} rounds up to {fmt(target + p)}, so the last whole number that works is {fmt(target + p // 2 - 1)}.", f"The {'smallest' if small else 'largest'} is {fmt(ans)}."])
 def rd_three():
     n = R.randint(10000, 99999)
     p = R.choice([10, 100, 1000])
@@ -214,7 +228,12 @@ def tricky_number():
 def nw_digits():
     n = tricky_number()
     add(T4, "Write numbers given in words", f"Write this number in digits: {words(n)}.", "n", n,
-        f"Split it at the words million and thousand: " + " | ".join(f"{name}: {v}" for name, v in (("millions", n // 10**6), ("thousands", n // 1000 % 1000), ("the rest", n % 1000)) if v or name == "the rest") + f". Fill any empty columns with 0: {fmt(n)}.")
+        f"Split it at the words million and thousand: " + " | ".join(f"{name}: {v}" for name, v in (("millions", n // 10**6), ("thousands", n // 1000 % 1000), ("the rest", n % 1000)) if v or name == "the rest") + f". Fill any empty columns with 0: {fmt(n)}.",
+        steps=["Split the words at 'million' and 'thousand'. Each part is a group of 3 digits."] +
+              ([f"Before 'million': {w999(n // 10**6)} → {n // 10**6}."] if n >= 10**6 else []) +
+              ([f"Before 'thousand': {w999(n // 1000 % 1000)} → {(f'{n // 1000 % 1000:03d}' if n >= 10**6 else str(n // 1000))}" + (" (3 digits, so fill with 0s)." if n >= 10**6 and n // 1000 % 1000 < 100 else ".")] if n >= 1000 else []) +
+              [f"The rest: {w999(n % 1000) if n % 1000 else 'nothing'} → {n % 1000:03d} (always 3 digits, fill empty places with 0)."] +
+              [f"Put the groups together: {fmt(n)}."])
 def variants(n):
     s = str(n); out = set()
     for i in range(1, len(s)):
@@ -260,7 +279,10 @@ def pv_value():
     name, unit = place_of(s, d); val = int(d) * unit
     ans = float(val) if isinstance(val, Fraction) else val
     add(T5, "Know the value of each digit", f"What is the value of the digit {d} in {show(s)}?", "n", round(ans, 6) if isinstance(ans, float) else ans,
-        f"The {d} is in the {name} place, so it is worth {d} × {fmt(float(unit)) if isinstance(unit, Fraction) else fmt(unit)} = {fmt(round(float(val), 6))}.")
+        f"The {d} is in the {name} place, so it is worth {d} × {fmt(float(unit)) if isinstance(unit, Fraction) else fmt(unit)} = {fmt(round(float(val), 6))}.",
+        steps=["Name the columns: millions, hundred thousands, ten thousands, thousands, hundreds, tens, ones . tenths, hundredths, thousandths.",
+               f"Find the {d} in {show(s)}: it is in the {name} place.", f"One {name[:-1] if name.endswith('s') else name} is worth {fmt(float(unit)) if isinstance(unit, Fraction) else fmt(unit)}.",
+               f"So the {d} is worth {d} × {fmt(float(unit)) if isinstance(unit, Fraction) else fmt(unit)} = {fmt(round(float(val), 6))}."])
 def pv_name():
     s, d = unique_digit_number(R.choice([0, 0, 0, 3]))
     name, _ = place_of(s, d); i = ORDER.index(name)
@@ -277,13 +299,18 @@ def pv_build():
     parts = [(int(ch), INT_PLACES[len(s) - 1 - i]) for i, ch in enumerate(s) if ch != "0"]
     R.shuffle(parts)
     add(T5, "Partition numbers", "What number is " + ", ".join(f"{a} {p if a != 1 else p[:-1] if p != 'ones' else 'one'}" for a, p in parts) + "?", "n", n,
-        "Put each digit in its column and write 0 in any empty column: " + fmt(n) + ".")
+        "Put each digit in its column and write 0 in any empty column: " + fmt(n) + ".",
+        steps=["Draw the place value columns: " + ", ".join(INT_PLACES[:len(s)][::-1]) + ".", "Put each digit in its column: " + ", ".join(f"{p} {a}" for a, p in sorted(parts, key=lambda x: -INT_PLACES.index(x[1]))) + ".",
+               "Any empty column gets a 0: " + (", ".join(INT_PLACES[len(s) - 1 - i] for i, ch in enumerate(s) if ch == "0") or "none") + ".", f"Read the number: {fmt(n)}."])
 def pv_more():
     n = R.randint(10000, 999999); p = R.choice([10, 100, 1000, 10000, 100000]); up = R.choice([True, False])
     if not up and n < p: return
     r = n + p if up else n - p
     add(T5, "Find more or less", f"What is {fmt(p)} {'more' if up else 'less'} than {fmt(n)}?", "n", r,
-        f"Only the {INT_PLACES[int(math.log10(p))]} column changes (watch out if it goes past 9 or below 0): {fmt(n)} {'+' if up else '−'} {fmt(p)} = {fmt(r)}.")
+        f"Only the {INT_PLACES[int(math.log10(p))]} column changes (watch out if it goes past 9 or below 0): {fmt(n)} {'+' if up else '−'} {fmt(p)} = {fmt(r)}.",
+        steps=[f"{fmt(p)} {'more' if up else 'less'}: change the {INT_PLACES[int(math.log10(p))]} digit by 1.", f"In {fmt(n)} the {INT_PLACES[int(math.log10(p))]} digit is {(n // p) % 10}.",
+               (f"It becomes {(r // p) % 10}; the other digits stay the same." if ((n // p) % 10 != 9 or not up) and ((n // p) % 10 != 0 or up) else "It goes past 9 (or below 0), so the next column changes too."),
+               f"{fmt(n)} {'+' if up else '−'} {fmt(p)} = {fmt(r)}."])
 PV_FNS = [pv_value, pv_value, pv_name, pv_name, pv_digit, pv_build, pv_more]
 
 # =============================== Fractions ===============================
@@ -320,7 +347,18 @@ def addsub(op):
         why = f"Change mixed numbers to improper fractions: {' and '.join(conv)}. " + why
     na, nb = a * L, b * L
     why += f" {int(na)}/{L} {op} {int(nb)}/{L} = {int(na + nb if op == '+' else na - nb)}/{L}." + simp_note(int(na + nb if op == '+' else na - nb), L)
-    add(topic, f"{'Add' if op == '+' else 'Subtract'} fractions", q, "f", mixed(r), why)
+    nr = int(na + nb if op == '+' else na - nb); st = []
+    if t == "mixed": st.append("Change mixed numbers to improper fractions (whole × bottom + top): " + "; ".join(f"{mixed(x)} = {x.numerator}/{x.denominator}" for x in (a, b) if x > 1 and x.denominator != 1) + ".")
+    if a.denominator == b.denominator: st.append(f"The denominators are the same ({L}), so just {'add' if op == '+' else 'subtract'} the numerators.")
+    else:
+        st.append(f"The denominators are different, so find a common denominator: the lowest common multiple of {a.denominator} and {b.denominator} is {L}.")
+        st.append(f"{frac(a)} = {int(na)}/{L} (× {L // a.denominator} top and bottom); {frac(b)} = {int(nb)}/{L} (× {L // b.denominator} top and bottom).")
+    st.append(f"{int(na)}/{L} {op} {int(nb)}/{L} = {nr}/{L}.")
+    f2 = Fraction(nr, L)
+    if f2.denominator != L: st.append(f"Simplify: divide top and bottom by {math.gcd(nr, L)} → {frac(f2)}.")
+    if f2 > 1 and f2.denominator != 1: st.append(f"Change to a mixed number: {f2.numerator} ÷ {f2.denominator} = {f2.numerator // f2.denominator} remainder {f2.numerator % f2.denominator} → {mixed(f2)}.")
+    st.append(f"Answer: {mixed(r)}.")
+    add(topic, f"{'Add' if op == '+' else 'Subtract'} fractions", q, "f", mixed(r), why, steps=st)
 def fr_add(): addsub("+")
 def fr_sub(): addsub("−")
 def fr_mul():
@@ -336,7 +374,15 @@ def fr_mul():
     else:
         why += f"Multiply the tops and multiply the bottoms: {a.numerator} × {b.numerator} = {a.numerator * b.numerator} and {a.denominator} × {b.denominator} = {a.denominator * b.denominator}, so {a.numerator * b.numerator}/{a.denominator * b.denominator}."
         why += simp_note(a.numerator * b.numerator, a.denominator * b.denominator)
-    add("Multiplying fractions", "Multiply fractions", f"Work out {mixed(a)} × {mixed(b)}. Give your answer in its simplest form.", "f", mixed(r), why)
+    st = ([f"Change the mixed number to an improper fraction: {mixed(a)} = {a.numerator}/{a.denominator} (whole × bottom + top)."] if t == "mixed" else [])
+    nn, dd = a.numerator * b.numerator, a.denominator * b.denominator
+    st += ([f"Multiplying by a whole number: multiply only the top. {a.numerator} × {b.numerator} = {nn}, so {nn}/{dd}."] if b.denominator == 1 else
+           ["Multiply the tops, then multiply the bottoms.", f"Tops: {a.numerator} × {b.numerator} = {nn}. Bottoms: {a.denominator} × {b.denominator} = {dd}. So {nn}/{dd}."])
+    f2 = Fraction(nn, dd)
+    if f2.denominator != dd: st.append(f"Simplify: divide top and bottom by {math.gcd(nn, dd)} → {frac(f2)}.")
+    if f2 > 1 and f2.denominator != 1: st.append(f"Change to a mixed number: {f2.numerator} ÷ {f2.denominator} = {f2.numerator // f2.denominator} remainder {f2.numerator % f2.denominator} → {mixed(f2)}.")
+    st.append(f"Answer: {mixed(r)}.")
+    add("Multiplying fractions", "Multiply fractions", f"Work out {mixed(a)} × {mixed(b)}. Give your answer in its simplest form.", "f", mixed(r), why, steps=st)
 def fr_div():
     t = R.choice(["byWhole", "wholeBy", "frac", "frac", "mixed"])
     if t == "byWhole": a, b = proper(), Fraction(R.randint(2, 6))
@@ -348,7 +394,14 @@ def fr_div():
     why = (f"Change the mixed number to an improper fraction: {mixed(a)} = {a.numerator}/{a.denominator}. " if t == "mixed" else "")
     why += f"Keep, change, flip: keep {frac(a)}, change ÷ to ×, flip {frac(b)} to {b.denominator}/{b.numerator}. "
     why += f"{frac(a)} × {b.denominator}/{b.numerator} = {a.numerator * b.denominator}/{a.denominator * b.numerator}." + simp_note(a.numerator * b.denominator, a.denominator * b.numerator)
-    add("Dividing fractions", "Divide fractions", f"Work out {mixed(a)} ÷ {mixed(b)}. Give your answer in its simplest form.", "f", mixed(r), why)
+    nn, dd = a.numerator * b.denominator, a.denominator * b.numerator; f2 = Fraction(nn, dd)
+    st = ([f"Change the mixed number to an improper fraction: {mixed(a)} = {a.numerator}/{a.denominator}."] if t == "mixed" else [])
+    st += [f"Keep {frac(a) if a.denominator != 1 else str(a.numerator) + '/1'}, change ÷ to ×, flip {frac(b) if b.denominator != 1 else str(b.numerator) + '/1'} to {b.denominator}/{b.numerator}.",
+           f"Multiply: tops {a.numerator} × {b.denominator} = {nn}, bottoms {a.denominator} × {b.numerator} = {dd}. So {nn}/{dd}."]
+    if f2.denominator != dd: st.append(f"Simplify: divide top and bottom by {math.gcd(nn, dd)} → {frac(f2)}.")
+    if f2 > 1 and f2.denominator != 1: st.append(f"Change to a mixed number: {f2.numerator} ÷ {f2.denominator} = {f2.numerator // f2.denominator} remainder {f2.numerator % f2.denominator} → {mixed(f2)}.")
+    st.append(f"Answer: {mixed(r)}.")
+    add("Dividing fractions", "Divide fractions", f"Work out {mixed(a)} ÷ {mixed(b)}. Give your answer in its simplest form.", "f", mixed(r), why, steps=st)
 
 TOPICS = [
     ("Prime numbers", PRIME_FNS),
@@ -392,6 +445,8 @@ for i, q in enumerate(BANK):
         assert pv(q["a"]) == want, q
 assert len(BANK) == PER_TOPIC * len(TOPICS)
 
+if os.environ.get("STEPS_OUT"):
+    json.dump({q["q"] + "null": STEPS[q["q"] + "null"] for q in BANK if q["q"] + "null" in STEPS}, open(os.environ["STEPS_OUT"], "w"), ensure_ascii=False); raise SystemExit
 out = "/* Year 7 maths, Brush up: number skills from earlier years (primes, factors, rounding, numbers in words, place value, fractions). Built by tools/build_review.py. */\n"
 out += "const REVIEW_TOPICS=" + json.dumps([t for t, _ in TOPICS]) + ";\n"
 out += "const REVIEW=" + json.dumps(BANK, ensure_ascii=False, separators=(",", ":")) + ";\n"
