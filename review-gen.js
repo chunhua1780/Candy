@@ -115,7 +115,7 @@ RV["Multiplying fractions"]=()=>frQ("×"); RV["Dividing fractions"]=()=>frQ("÷"
 let rvSeq=0;
 function reviewTopUp(t,n){
   const make=RV[t]; if(!make)return [];
-  const slug="rv-"+t.toLowerCase().replace(/[^a-z]+/g,"-").replace(/^-|-$/g,""), seen=new Set(MATHS.filter(q=>q.t===t).map(q=>q.q)), out=[];
+  const slug="rv-"+t.toLowerCase().replace(/[^a-z]+/g,"-").replace(/^-|-$/g,""), seen=new Set([...MATHS.filter(q=>q.t===t).map(q=>q.q),...Object.values(MQ).filter(q=>q.gen===slug).map(q=>q.q)]), out=[]; // never repeat a fixed question or one already made
   for(let g=0;out.length<n&&g<400;g++){
     let q; try{q=make();}catch(e){q=null;}
     if(!q||seen.has(q.q))continue; seen.add(q.q);
