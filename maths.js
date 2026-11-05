@@ -18,7 +18,7 @@ function dailySet(date,create=true){
   if(!create)return null;
   const rnd=seedRand((Store.user||"")+"|"+date), st=M.q;
   const retry=Object.entries(st).filter(([id,s])=>MQ[id]&&s.ok===false&&(s.last||"")<date).sort((a,b)=>(a[1].last||"")<(b[1].last||"")?-1:1).slice(0,5).map(x=>x[0]);
-  const byT={}; for(const q of MATHS)if(!st[q.id]&&!retry.includes(q.id))(byT[q.t]=byT[q.t]||[]).push(q.id);
+  const byT={}; for(const q of MATHS)if(!st[q.id]&&!SERVED[q.id]&&!retry.includes(q.id))(byT[q.t]=byT[q.t]||[]).push(q.id);
   const need=MDAY-retry.length, picked=[], cnt={};
   for(let g=0;picked.length<need&&g<400;g++){
     const ts=Object.keys(byT).filter(t=>byT[t].length&&(cnt[t]||0)<3); if(!ts.length)break;
@@ -31,7 +31,7 @@ function dailySet(date,create=true){
     for(const [id] of old){if(picked.length>=need)break;picked.push(id);}
   }
   const ids=[...retry,...picked].sort((a,b)=>TI(MQ[a].t)-TI(MQ[b].t)||(a<b?-1:1));
-  M.days[date]={ids,ans:{},u:Date.now()}; Store.save();
+  M.days[date]={ids,ans:{},u:Date.now()}; Store.save(); markServed(ids);
   return M.days[date];
 }
 // Take one question of each kind in turn, so a set of 10 mixes the kinds instead of repeating one
@@ -41,11 +41,21 @@ function mixKinds(ids){
   for(let i=0;out.length<ids.length;i++)for(const k of ks)if(g[k][i])out.push(g[k][i]);
   return out;
 }
+/* Questions already shown on this device (answered or not), so a new set does not repeat them until the
+   topic has run out; then the ones seen longest ago come back first. Wrong answers return at most 3 per set,
+   and not on the same day they were last seen. */
+const SERVED=(()=>{try{return JSON.parse(localStorage.getItem("m-served")||"{}");}catch(e){return {};}})();
+function markServed(ids){const t=Date.now();ids.forEach(id=>{if(MQ[id]&&!String(id).startsWith("g:"))SERVED[id]=t;});try{localStorage.setItem("m-served",JSON.stringify(SERVED));}catch(e){}}
+const lastSeen=(id,st)=>Math.max(SERVED[id]||0,(st[id]&&st[id].u)||0);
 function topicSet(t){
-  const st=MB().q, all=MATHS.filter(q=>q.t===t).map(q=>q.id);
-  const fresh=mixKinds(shuffle(all.filter(id=>!st[id]))), wrong=shuffle(all.filter(id=>st[id]&&st[id].ok===false)),
-    old=all.filter(id=>st[id]&&st[id].ok!==false).sort((a,b)=>(st[a].last||"")<(st[b].last||"")?-1:1);
-  return [...wrong.slice(0,3),...fresh,...old].slice(0,MTOPIC);
+  const st=MB().q, all=MATHS.filter(q=>q.t===t).map(q=>q.id), now=Date.now();
+  const wrong=shuffle(all.filter(id=>st[id]&&st[id].ok===false&&now-lastSeen(id,st)>18*3600e3)).slice(0,3);
+  const fresh=mixKinds(shuffle(all.filter(id=>!st[id]&&!SERVED[id])));
+  let ids=[...wrong,...fresh].slice(0,MTOPIC);
+  if(ids.length<MTOPIC&&typeof reviewTopUp==="function")ids=ids.concat(reviewTopUp(t,MTOPIC-ids.length)); // brush-up: brand-new generated questions
+  if(ids.length<MTOPIC){const used=new Set(ids);ids=ids.concat(all.filter(id=>!used.has(id)).sort((a,b)=>lastSeen(a,st)-lastSeen(b,st)).slice(0,MTOPIC-ids.length));}
+  markServed(ids);
+  return ids;
 }
 function topicStats(){
   const st=MB().q, out={};
@@ -203,6 +213,7 @@ function viewMaths(){
       <div class="kpi"><b>${total?Math.round(right/total*100)+"%":"–"}</b><span>correct</span></div>
       <div class="kpi"><b>${seen}<small>/${MATHS.length}</small></b><span>of the question bank</span></div>
     </div>
+    ${checkupCard()}
     ${REVIEW_SET.length?`<div class="section-title"><h3 style="margin:0">Brush up</h3><span class="muted small">Number skills from earlier years · ${MTOPIC} questions at a time</span></div>
     <div class="topics">${REVIEW_SET.map(t=>topicTile(t,ts[t])).join("")}</div>`:""}
     ${paperSection()}
@@ -212,6 +223,7 @@ function viewMaths(){
 }
 function bindMaths(){
   bindPaper();
+  document.querySelectorAll("#view [data-cu]").forEach(b=>b.onclick=()=>openCheckup());
   document.querySelectorAll("#view [data-maths]").forEach(b=>b.onclick=()=>{
     if(b.dataset.maths==="day"){const d=dailySet(today());openMaths({kind:"day",date:today(),ids:d.ids});}
     else openMaths({kind:"topic",topic:b.dataset.topic,ids:topicSet(b.dataset.topic)});
@@ -222,10 +234,10 @@ function bindMaths(){
 let MS=null;
 function openMaths(o){
   MS={...o,i:0,tries:0,input:"",state:"ask",res:{},wrongPick:[]};
-  if(o.kind==="day"){const d=MB().days[o.date];Object.entries(d.ans||{}).forEach(([id,a])=>MS.res[id]=a.ok);
+  if(o.kind==="day"||o.kind==="test"){const d=MB().days[o.kind==="test"?o.key:o.date];Object.entries(d.ans||{}).forEach(([id,a])=>MS.res[id]=a.ok);
     const first=o.ids.findIndex(id=>!(id in d.ans)); MS.i=first<0?o.ids.length:first;}
   window.__busy=true; $("#maths").hidden=false; document.body.style.overflow="hidden";
-  $("#mLabel").textContent=o.kind==="day"?`Daily maths · ${shortDate(o.date)}`:o.topic;
+  $("#mLabel").textContent=o.kind==="day"?`Daily maths · ${shortDate(o.date)}`:o.kind==="test"?`Daily maths test · ${shortDate(o.date)}`:o.topic;
   renderMQ();
 }
 function closeMaths(){MS=null;window.__busy=false;$("#maths").hidden=true;document.body.style.overflow="";Store.save();render();}
@@ -250,7 +262,7 @@ function renderMQ(){
     ${q.k==="c"?`<div class="m-opts">${q.c.map((c,i)=>`<button class="opt-btn m-opt ${done&&i===q.a?"right":""} ${MS.wrongPick.includes(i)?"wrong":""}" data-opt="${i}" ${done||MS.wrongPick.includes(i)?"disabled":""}>${esc(c)}${zhLine(c,"opt")}</button>`).join("")}</div>`
     :`<div class="m-answer ${st}"><span class="pre">${pre}</span><span class="val">${esc(q.k==="n"?MS.input.replace(/^(−?)(\d{4,})/,(m,s,d)=>s+(+d).toLocaleString("en-GB")):MS.input)}${done?"":`<i class="caret"></i>`}</span><span class="post">${esc(post)}</span></div>
       ${done?"":`<div class="keypad ${q.k}">${keysFor(q).map(k=>`<button data-key="${k}" class="${k==="⌫"?"del":k==="space"?"sp":""}">${k==="⌫"?ic("back"):k==="space"?"space":k}</button>`).join("")}</div>
-      <button class="btn primary big" id="mCheck" ${MS.input.trim()?"":"disabled"}>Check</button>`}`}
+      <button class="btn primary big" id="mCheck" ${MS.input.trim()?"":"disabled"}>${MS.kind==="test"?(MS.i+1<n?"Next":"Finish"):"Check"}</button>`}`}
     <div class="m-feedback">${feedback(q)}</div>
   </div>`;
   $("#mSay").onclick=()=>sayMaths(q.q,$("#mSay"));
@@ -283,6 +295,7 @@ function press(k){
 }
 function answer(q,v){
   const ok=q.k==="c"?v===q.a:checkAns(q,v);
+  if(MS.kind==="test"){MS.tries=1;record(q,ok,q.k==="c"?q.c[v]:v);nextQ();return;} // a test: one try, marks only at the end
   MS.tries++;
   if(ok){MS.state="right";MS.exp=0;beep(true,false);}
   else if(MS.tries<2){MS.state="retry";beep(false);if(q.k==="c")MS.wrongPick.push(v);else MS.input="";renderMQ();return;}
@@ -295,10 +308,12 @@ function record(q,ok,given){
   M.q[key]={n:(s.n||0)+1,r:(s.r||0)+(ok?1:0),ok,last:t,u:Date.now()};
   const L=M.log[t]=M.log[t]||{n:0,r:0}; L.n++; if(ok)L.r++;
   if(MS.kind==="day"){const d=M.days[MS.date];d.ans[q.id]={v:String(given).slice(0,20),ok,tries:MS.tries};d.u=Date.now();}
+  if(MS.kind==="test"){const d=M.days[MS.key];d.ans[q.id]={v:String(given).slice(0,20),ok};d.u=Date.now();}
   MS.res[q.id]=ok; Store.save();
 }
 function nextQ(){MS.i++;MS.exp=0;MS.tries=0;MS.input="";MS.state="ask";MS.wrongPick=[];renderMQ();window.scrollTo(0,0);$("#mBody").scrollTop=0;}
 function renderMResults(){
+  if(MS.kind==="test"){renderCheckupReport();return;}
   const ids=MS.ids, right=ids.filter(id=>MS.res[id]).length, n=ids.length, pct=right/n;
   const stars=pct>=.9?3:pct>=.7?2:pct>=.4?1:0;
   if(!MS.cheered){MS.cheered=true;beep(true,true);}
