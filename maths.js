@@ -2,6 +2,17 @@
    The question bank (MATHS, MATHS_TOPICS) comes from maths-bank.js, built by tools/build_maths.py.
    Progress lives in book.maths: q (per question), days (the daily 20), log (answered per day). */
 const MDAY=20, MTOPIC=10;
+/* Year 7 and below only. Checked against the White Rose Maths Year 7 and Year 8 blocks: these kinds of question
+   belong to Year 8 or later (ratio and scale, the Cartesian plane, brackets, angles in parallel lines and polygons,
+   area of trapezia, the nth term, two-event tables, compound units, error intervals), so they are left out. */
+const Y8_PLUS=["Simplify ratios","Divide a quantity in a given ratio","Solve ratio problems","Relate ratios to fractions",
+  "Recognise the gradient and intercept of y = mx + c","Work with coordinates on straight-line graphs","Find the midpoint of a line segment","Recognise horizontal and vertical lines",
+  "Expand a single bracket","Expand and simplify","Factorise by taking out a common factor","Solve linear equations with the unknown on both sides",
+  "Use alternate, corresponding and co-interior angles with parallel lines","Find the sum of interior angles of a polygon","Find interior angles of regular polygons","Find exterior angles of regular polygons",
+  "Calculate the area of trapezia","Find the nth term of a linear sequence","Decide whether a number is in a sequence","List outcomes systematically","Calculate expected outcomes",
+  "Use compound units such as speed","Use error intervals","Calculate the surface area of cuboids","Calculate the mean from a frequency table"];
+for(let i=MATHS.length-1;i>=0;i--)if(Y8_PLUS.includes(MATHS[i].o))MATHS.splice(i,1);
+for(let i=MATHS_TOPICS.length-1;i>=0;i--)if(!MATHS.some(q=>q.t===MATHS_TOPICS[i]))MATHS_TOPICS.splice(i,1);
 const MQ=Object.fromEntries(MATHS.map(q=>[q.id,q]));
 const TI=t=>MATHS_TOPICS.indexOf(t);
 const TCOL=["blue","teal","purple","pink","orange","green"];
