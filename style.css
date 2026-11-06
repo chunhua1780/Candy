@@ -758,3 +758,4 @@ input,select,textarea{font-size:max(16px,1em)}
 .must-table td small{display:block;color:var(--muted);font-size:11px}
 .must-table td.ok{color:var(--green);font-weight:700}
 .must-table td.part{color:var(--orange);font-weight:600}
+.mk-card{background:linear-gradient(150deg,color-mix(in srgb,var(--red) 9%,var(--paper)),var(--paper) 70%)}

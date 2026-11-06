@@ -27,26 +27,35 @@ function MB(){const b=B();b.maths=b.maths||{};b.maths.q=b.maths.q||{};b.maths.da
 function seedRand(str){let h=2166136261;for(const c of str){h^=c.charCodeAt(0);h=Math.imul(h,16777619);}
   return ()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 
-/* Today's 20: up to 5 questions answered wrongly before, then new questions spread across all topics */
+/* Today's 20 follows what the class has covered so far (the units in checkup.js, by date or as a parent set):
+   up to 4 questions got wrong before, 7 from the unit taught now, 5 from earlier units, 2 brush-up questions
+   and 2 of the school test-paper types (bar charts, averages, Venn diagrams, factors, frequency), made fresh and
+   saved with the day so they stay the same on every device. Unseen questions come first. */
 function dailySet(date,create=true){
-  const M=MB(), ex=dayOf(date); if(ex&&ex.ids.length)return ex;
+  const M=MB(), ex=dayOf(date);
+  if(ex&&(ex.ids||[]).length){if(ex.gq)for(const [id,q] of Object.entries(ex.gq))MQ[id]=q;return ex;}
   if(!create)return null;
-  const rnd=seedRand((Store.user||"")+"|"+date), st=M.q;
-  const retry=Object.entries(st).filter(([id,s])=>MQ[id]&&s.ok===false&&(s.last||"")<date).sort((a,b)=>(a[1].last||"")<(b[1].last||"")?-1:1).slice(0,5).map(x=>x[0]);
-  const byT={}; for(const q of MATHS)if(!st[q.id]&&!SERVED[q.id]&&!retry.includes(q.id))(byT[q.t]=byT[q.t]||[]).push(q.id);
-  const need=MDAY-retry.length, picked=[], cnt={};
-  for(let g=0;picked.length<need&&g<400;g++){
-    const ts=Object.keys(byT).filter(t=>byT[t].length&&(cnt[t]||0)<3); if(!ts.length)break;
-    let r=rnd()*ts.reduce((s,t)=>s+byT[t].length,0), t=ts[ts.length-1];
-    for(const x of ts){r-=byT[x].length;if(r<0){t=x;break;}}
-    picked.push(byT[t].splice(Math.floor(rnd()*byT[t].length),1)[0]); cnt[t]=(cnt[t]||0)+1;
+  const rnd=seedRand((Store.user||"")+"|"+date), st=M.q, used=new Set();
+  const mix=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
+  const take=(pool,n)=>{pool=pool.filter(id=>!used.has(id));
+    const fresh=mixKinds(mix(pool.filter(id=>!st[id]&&!SERVED[id]))), older=pool.filter(id=>!fresh.includes(id)).sort((a,b)=>lastSeen(a,st)-lastSeen(b,st));
+    const out=[...fresh,...older].slice(0,n); out.forEach(id=>used.add(id)); return out;};
+  const retry=Object.entries(st).filter(([id,s])=>MQ[id]&&!id.startsWith("w:")&&s.ok===false&&(s.last||"")<date).sort((a,b)=>(a[1].last||"")<(b[1].last||"")?-1:1).slice(0,4).map(x=>x[0]);
+  retry.forEach(id=>used.add(id));
+  let ids=[...retry];
+  if(typeof CU_UNITS!=="undefined"){
+    const cur=cuCurrent(date).unit, earlier=CU_UNITS.filter(u=>u.from<cur.from).flatMap(u=>u.ids);
+    const brush=MATHS.filter(q=>REVIEW_SET.includes(q.t)).map(q=>q.id);
+    ids.push(...take(cur.ids,7),...take(earlier.length?earlier:cur.ids,5),...take(brush,2));
+    var taught=[...cur.ids,...earlier]; // only units already reached fill any gap
   }
-  if(picked.length<need){ // the whole bank has been seen: bring back the oldest ones
-    const old=Object.entries(st).filter(([id])=>MQ[id]&&!retry.includes(id)).sort((a,b)=>(a[1].last||"")<(b[1].last||"")?-1:1);
-    for(const [id] of old){if(picked.length>=need)break;picked.push(id);}
-  }
-  const ids=[...retry,...picked].sort((a,b)=>TI(MQ[a].t)-TI(MQ[b].t)||(a<b?-1:1));
-  M.days[DAYP+date]={ids,ans:{},u:Date.now()}; Store.save(); markServed(ids);
+  const gq={};
+  if(typeof PAPER_TYPES!=="undefined"){const day=Math.floor(pdate(date)/864e5);
+    for(let i=0;i<2;i++){const p=PAPER_TYPES[(day*2+i)%PAPER_TYPES.length];let q=null;for(let g=0;g<30&&!q;g++){q=p.gen();if(q&&q.k==="n"&&!Number.isFinite(q.a))q=null;}
+      if(q){const id=`gd:${date}:${i}`;gq[id]={...q,id,gen:p.k};MQ[id]=gq[id];ids.push(id);}}}
+  if(ids.length<MDAY)ids.push(...take(typeof taught!=="undefined"?taught:MATHS.map(q=>q.id),MDAY-ids.length));
+  ids=ids.slice(0,MDAY);
+  M.days[DAYP+date]={ids,ans:{},u:Date.now(),...(Object.keys(gq).length?{gq}:{})}; Store.save(); markServed(ids.filter(id=>MQ[id]&&!id.startsWith("gd:")));
   return M.days[DAYP+date];
 }
 // Take one question of each kind in turn, so a set of 10 mixes the kinds instead of repeating one
@@ -72,10 +81,28 @@ function topicSet(t){
   markServed(ids);
   return ids;
 }
+/* ---------- 错题本 · mistakes to practise again ----------
+   Every question whose latest answer was wrong: bank questions by id, generated ones (test paper, brush-up,
+   formulas, daily paper questions) saved with their text under "w:<id>". Answering one right takes it off. */
+function registerMistakes(){const st=MB().q;for(const [k,v] of Object.entries(st))if(k.startsWith("w:")&&v.q&&!MQ[k])MQ[k]={...v.q,id:k};}
+function mistakeIds(){
+  registerMistakes(); const st=MB().q;
+  return Object.entries(st).filter(([id,s])=>s.ok===false&&MQ[id]&&!/^(p:|f:)/.test(id)).sort((a,b)=>(a[1].u||0)-(b[1].u||0)).map(x=>x[0]);
+}
+function mistakesCard(){
+  const ids=mistakeIds(), byT={}; ids.forEach(id=>{const t=MQ[id].t;byT[t]=(byT[t]||0)+1;});
+  return `<div class="card mk-card row" style="justify-content:space-between;gap:14px;flex-wrap:wrap">
+    <div class="stack tight" style="gap:4px;flex:1;min-width:240px"><span class="kind-tag" style="--kc:var(--c-red,#d64545)">${ic("x")}错题本 · Mistakes to fix</span>
+      <h3 style="margin:0">${ids.length?`${ids.length} question${ids.length>1?"s":""} to try again`:"No mistakes waiting. Brilliant!"}</h3>
+      <span class="muted small">${ids.length?Object.entries(byT).sort((a,b)=>b[1]-a[1]).slice(0,4).map(([t,n])=>`${esc(t)} ${n}`).join(" · "):"Questions you get wrong are saved here so you can practise them again."}</span></div>
+    ${ids.length?`<button class="btn primary big" data-mistakes style="background:var(--red)">${ic("check")}Practise ${Math.min(10,ids.length)} again</button>`:""}
+  </div>`;
+}
+function openMistakes(){const ids=mistakeIds().slice(0,10);if(!ids.length)return;openMaths({kind:"topic",topic:"错题本 · Mistakes to fix",ids});}
 function topicStats(){
   const st=MB().q, out={};
   for(const t of MATHS_TOPICS)out[t]={seen:0,n:0,r:0,total:TOPIC_COUNT[t]};
-  for(const [id,s] of Object.entries(st)){const q=MQ[id];if(!q)continue;const o=out[q.t];o.seen++;o.n+=s.n||0;o.r+=s.r||0;}
+  for(const [id,s] of Object.entries(st)){const q=MQ[id];if(!q||id.startsWith("w:")||!out[q.t])continue;const o=out[q.t];o.seen++;o.n+=s.n||0;o.r+=s.r||0;}
   return out;
 }
 const dayScore=d=>{const a=Object.values(d.ans||{});return {done:a.length,right:a.filter(x=>x.ok).length,n:(d.ids||[]).length};};
@@ -217,7 +244,7 @@ function viewMaths(){
     <div class="page-head"><div><div class="eyebrow">Maths · Year 7</div><h1>Daily maths</h1></div></div>
     <div class="card maths-hero">
       <div class="stack" style="gap:12px">
-        <div class="muted">${MDAY} questions every day from the Year 7 curriculum. Work them out on paper if you need to, then type or tap your answer. You get two tries.</div>
+        <div class="muted">${MDAY} questions every day that follow your class: now <b>${esc(typeof cuCurrent==="function"?cuCurrent().unit.name:"Year 7")}</b>, plus earlier units, your school test-paper question types and brush-up skills. Questions you got wrong come back. You get two tries.</div>
         <div class="row" style="gap:14px">${week.map(w=>{const x=dayOf(w),s=x?dayScore(x):null;return `<div class="wk"><div class="ring" style="--p:${s?s.done/s.n*100:0}"><span>${s&&s.done?s.right:""}</span></div><div class="muted">${w===t?"Today":WEEK[pdate(w).getDay()]}</div></div>`;}).join("")}</div>
         <div class="row"><button class="btn primary big" data-maths="day">${ic("maths")}${sc.done===0?"Start today’s 20":sc.done<sc.n?`Continue · ${sc.n-sc.done} left`:"See today’s results"}</button>
           ${sc.done===sc.n?`<span class="muted">${sc.right}/${sc.n} correct today</span>`:""}</div>
@@ -230,6 +257,7 @@ function viewMaths(){
       <div class="kpi"><b>${seen}<small>/${MATHS.length}</small></b><span>of the question bank</span></div>
     </div>
     ${checkupCard()}
+    ${mistakesCard()}
     ${REVIEW_SET.length?`<div class="section-title"><h3 style="margin:0">Brush up</h3><span class="muted small">Number skills from earlier years · ${MTOPIC} questions at a time</span></div>
     <div class="topics">${REVIEW_SET.map(t=>topicTile(t,ts[t])).join("")}</div>`:""}
     ${shapesEntry()}
@@ -239,6 +267,7 @@ function viewMaths(){
   </div>`;
 }
 function bindMaths(){
+  document.querySelectorAll("#view [data-mistakes]").forEach(b=>b.onclick=openMistakes);
   bindPaper();
   document.querySelectorAll("#view [data-cu]").forEach(b=>b.onclick=()=>openCheckup());
   document.querySelectorAll("#view [data-shapes]").forEach(b=>b.onclick=()=>openShapes());
@@ -323,7 +352,8 @@ function answer(q,v){
 }
 function record(q,ok,given){
   const M=MB(), t=today(), key=q.gen?"p:"+q.gen:q.id, s=M.q[key]||{}; // generated questions keep one record per type
-  M.q[key]={n:(s.n||0)+1,r:(s.r||0)+(ok?1:0),ok,last:t,u:Date.now()};
+  M.q[key]={n:(s.n||0)+1,r:(s.r||0)+(ok?1:0),ok,last:t,u:Date.now(),...(s.q?{q:s.q}:{})};
+  if(q.gen&&!ok){const {id,gen,...keep}=q;M.q["w:"+String(q.id).replace(/^g[a-z]*:/,"")]={n:1,r:0,ok:false,last:t,u:Date.now(),q:keep};} // generated question got wrong: keep it for the mistakes list
   const L=M.log[t]=M.log[t]||{n:0,r:0}; L.n++; if(ok)L.r++;
   if(q.gen){const g=q.gen.startsWith("fm-")?"fm":q.gen.startsWith("rv-")?"rv":"pp",G=M.log[g+":"+t]=M.log[g+":"+t]||{n:0,r:0};G.n++;if(ok)G.r++;G.u=Date.now();} // per-day counts for formulas, brush-up and test paper (must.js)
   if(MS.kind==="day"){const d=dayOf(MS.date);d.ans[q.id]={v:String(given).slice(0,20),ok,tries:MS.tries};d.u=Date.now();}
