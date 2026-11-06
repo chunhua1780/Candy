@@ -59,6 +59,8 @@
   <div class="s-body" id="shBody"></div>
 </section>
 
+<section id="must" hidden aria-label="Today’s must-do"></section>
+
 <section id="maths" hidden aria-label="Maths">
   <div class="s-top">
     <button class="icon-btn" id="mClose" aria-label="Close"></button>
@@ -94,6 +96,7 @@
 <script src="review-gen.js"></script>
 <script src="checkup.js"></script>
 <script src="shapes.js"></script>
+<script src="must.js"></script>
 <script>
 "use strict";
 const B=()=>Store.book;
@@ -440,7 +443,7 @@ function render(){
     const s=streakOf(B().log); $("#streak").innerHTML=`${ic("flame")}${s?`${s}<span class="lbl"> day${s===1?"":"s"}</span>`:`<span class="lbl">Start a streak</span>`}`;
   }
   $("#view").innerHTML=({login:viewLogin,today:viewToday,read:viewRead,maths:viewMaths,practice:viewPractice,words:viewWords})[tab]();
-  bind(); scrollStrip();
+  bind(); scrollStrip(); mustAfterRender();
 }
 
 function viewLogin(){
@@ -523,6 +526,7 @@ function viewToday(){
   const others=cur?listsOf(B()).filter(l=>l.date!==cur&&listOpen(l)).map(l=>({l,p:listPlan(B(),l.date)})).filter(x=>x.p.fresh.length||x.p.review.length).reverse():[];
   return `<div class="stack">
     <div class="page-head"><div><div class="eyebrow">${esc(niceDate(t))}</div><h1>${hi}, ${esc(B().name)}</h1></div></div>
+    ${typeof mustBanner==="function"?mustBanner():""}
     ${cur?`<div class="section"><div class="section-title"><h3>Word lists</h3><span class="muted small">Choose a date</span></div>${dateStrip(cur)}</div>
       ${listCard(cur)}`:`<div class="card empty stack" style="align-items:center">
         <div class="badge lg">${ic("calendar")}</div><h3>No word lists yet</h3>
