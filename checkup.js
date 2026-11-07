@@ -1,7 +1,7 @@
 /* ================= Daily maths test: a 15-question test that follows the Year 7 school year =================
    The school's own scheme of work is not published, so the units follow the order many English secondary
    schools use (White Rose Maths, Year 7) on the 2026-27 term dates. A parent can pick the unit by hand instead.
-   8 questions come from the current unit and 7 revise the others (earlier units first, then brush-up skills).
+   8 questions come from the current unit and 7 revise the earlier Year 7 units (no primary-school questions).
    One try per question and no marks until the end; then a report shows the score, how each area went and
    what to practise. A test is stored in book.maths.days under "test-YYYY-MM-DD", so it syncs with the rest.
    (Ported from the Year 5 check-up on Wendy's site; only the units differ.) */
@@ -29,7 +29,7 @@ const CU_UNITS=[
   {k:"stat",from:"2027-06-28",name:"Statistics",about:"averages, range, charts and tables",has:q=>q.t==="Statistics"},
 ];
 const CU_BY=Object.fromEntries(CU_UNITS.map(u=>[u.k,u]));
-for(const u of CU_UNITS)u.ids=MATHS.filter(q=>u.has(q)).map(q=>q.id);
+for(const u of CU_UNITS)u.ids=MATHS.filter(q=>u.has(q)&&!(typeof isPrimary==="function"&&isPrimary(q))).map(q=>q.id); // Year 7 questions only
 const cuUnitOf=id=>CU_UNITS.find(u=>u.has(MQ[id]))||null;
 
 /* The unit taught now: the parent's choice if set, otherwise the last one whose start date has passed */

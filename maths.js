@@ -28,7 +28,7 @@ function seedRand(str){let h=2166136261;for(const c of str){h^=c.charCodeAt(0);h
   return ()=>{h+=0x6D2B79F5;let t=h;t=Math.imul(t^t>>>15,t|1);t^=t+Math.imul(t^t>>>7,t|61);return((t^t>>>14)>>>0)/4294967296;};}
 
 /* Today's 20 follows what the class has covered so far (the units in checkup.js, by date or as a parent set):
-   up to 4 questions got wrong before, 7 from the unit taught now, 5 from earlier units, 2 brush-up questions
+   up to 4 questions got wrong before, 8 from the unit taught now, 6 from earlier Year 7 units (never primary-school work)
    and 2 of the school test-paper types (bar charts, averages, Venn diagrams, factors, frequency), made fresh and
    saved with the day so they stay the same on every device. Unseen questions come first. */
 function dailySet(date,create=true){
@@ -40,13 +40,12 @@ function dailySet(date,create=true){
   const take=(pool,n)=>{pool=pool.filter(id=>!used.has(id));
     const fresh=mixKinds(mix(pool.filter(id=>!st[id]&&!SERVED[id]))), older=pool.filter(id=>!fresh.includes(id)).sort((a,b)=>lastSeen(a,st)-lastSeen(b,st));
     const out=[...fresh,...older].slice(0,n); out.forEach(id=>used.add(id)); return out;};
-  const retry=Object.entries(st).filter(([id,s])=>MQ[id]&&!id.startsWith("w:")&&s.ok===false&&(s.last||"")<date).sort((a,b)=>(a[1].last||"")<(b[1].last||"")?-1:1).slice(0,4).map(x=>x[0]);
+  const retry=Object.entries(st).filter(([id,s])=>MQ[id]&&!(typeof isPrimary==="function"&&isPrimary(MQ[id]))&&!id.startsWith("w:")&&s.ok===false&&(s.last||"")<date).sort((a,b)=>(a[1].last||"")<(b[1].last||"")?-1:1).slice(0,4).map(x=>x[0]);
   retry.forEach(id=>used.add(id));
   let ids=[...retry];
   if(typeof CU_UNITS!=="undefined"){
     const cur=cuCurrent(date).unit, earlier=CU_UNITS.filter(u=>u.from<cur.from).flatMap(u=>u.ids);
-    const brush=MATHS.filter(q=>REVIEW_SET.includes(q.t)).map(q=>q.id);
-    ids.push(...take(cur.ids,7),...take(earlier.length?earlier:cur.ids,5),...take(brush,2));
+    ids.push(...take(cur.ids,8),...take(earlier.length?earlier:cur.ids,6)); // Year 7 units only
     var taught=[...cur.ids,...earlier]; // only units already reached fill any gap
   }
   const gq={};
@@ -87,7 +86,7 @@ function topicSet(t){
 function registerMistakes(){const st=MB().q;for(const [k,v] of Object.entries(st))if(k.startsWith("w:")&&v.q&&!MQ[k])MQ[k]={...v.q,id:k};}
 function mistakeIds(){
   registerMistakes(); const st=MB().q;
-  return Object.entries(st).filter(([id,s])=>s.ok===false&&MQ[id]&&!/^(p:|f:)/.test(id)).sort((a,b)=>(a[1].u||0)-(b[1].u||0)).map(x=>x[0]);
+  return Object.entries(st).filter(([id,s])=>s.ok===false&&MQ[id]&&!(typeof isPrimary==="function"&&isPrimary(MQ[id]))&&!/^(p:|f:)/.test(id)).sort((a,b)=>(a[1].u||0)-(b[1].u||0)).map(x=>x[0]);
 }
 function mistakesCard(){
   const ids=mistakeIds(), byT={}; ids.forEach(id=>{const t=MQ[id].t;byT[t]=(byT[t]||0)+1;});
@@ -266,7 +265,7 @@ function viewMaths(){
     </div>
     ${checkupCard()}
     ${mistakesCard()}
-    ${REVIEW_SET.length?`<div class="section-title"><h3 style="margin:0">Brush up</h3><span class="muted small">Number skills from earlier years · ${MTOPIC} questions at a time</span></div>
+    ${REVIEW_SET.length?`<div class="section-title"><h3 style="margin:0">Fractional thinking</h3><span class="muted small">Year 7 fraction calculations · ${MTOPIC} questions at a time</span></div>
     <div class="topics">${REVIEW_SET.map(t=>topicTile(t,ts[t])).join("")}</div>`:""}
     ${shapesEntry()}
     ${paperSection()}
