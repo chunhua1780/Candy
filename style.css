@@ -822,3 +822,12 @@ input,select,textarea{font-size:max(16px,1em)}
 .tt-main .eyebrow{color:var(--c-red,#d64545)}
 .tt-btns{display:flex;flex-direction:column;gap:8px}
 @media (max-width:620px){.tt-btns{flex-direction:row;flex-wrap:wrap;width:100%}.tt-btns .btn{flex:1}}
+/* English first; Chinese under it only when 中文 is on (zhui.js) */
+.zh-t{display:none}
+html.zh-on .zh-t{display:block;font-size:.82em;font-weight:500;line-height:1.35;color:var(--muted);margin-top:2px;letter-spacing:0;text-transform:none}
+html:not(.zh-on) .zh{display:none}
+.zh-all{font-weight:700}
+.zh-all.on{background:var(--c-red,#d64545);color:#fff}
+.zh-float{position:fixed;right:14px;top:14px;z-index:30;box-shadow:var(--shadow)}
+.nf-lv .zh-t{background:none;padding:0;color:inherit;opacity:.85}
+.chip .zh-t{display:none!important}
