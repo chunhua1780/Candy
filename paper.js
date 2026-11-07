@@ -189,12 +189,72 @@ function genFreq(){
   return PK(kinds)();
 }
 
+/* ---------- 6. line graphs: starting values, differences, time gaps ---------- */
+function genLine(){
+  const T="Statistics", O="Read a line graph";
+  const [title,names,unit,lo,hi]=PK([["Temperature in two cities",["London","Paris"],"°C",2,24],["Temperature in a classroom and outside",["Inside","Outside"],"°C",0,22],["Water in two tanks",["Tank A","Tank B"],"litres",10,80]]);
+  const times=["08:00","10:00","12:00","14:00","16:00","18:00"], n=times.length;
+  const st=unit==="litres"?10:2, mk=()=>{let v=PR(lo,Math.floor((lo+hi)/2));return times.map(()=>{v=Math.max(lo,Math.min(hi,v+PK([-2,-1,0,1,2,3])*st/2*2));return Math.round(v/st)*st;});};
+  const a=mk(), b=mk(); if(a.join()===b.join())return null;
+  const fig={t:"p-line",title,unit,labels:times,series:[{name:names[0],values:a},{name:names[1],values:b}]};
+  const key=`Check the key: ${names[0]} is the dark line with round dots, ${names[1]} the light line with squares.`;
+  const i=PR(0,n-1), j=PR(0,n-1);
+  const kinds=[
+    ()=>pq(T,O,`What was the ${unit==="°C"?"temperature":"amount of water"} in ${names[1]} at the start (${times[0]})?`,"n",b[0],[key,`The start is the first point, at ${times[0]}.`,`Read across from the ${names[1]} point to the scale: ${b[0]} ${unit}.`],{f:fig,u:unit==="°C"?"°C":""}),
+    ()=>{if(a[i]===b[i])return null;return pq(T,O,`At ${times[i]}, how much ${unit==="°C"?"warmer":"more"} was ${a[i]>b[i]?names[0]:names[1]} than ${a[i]>b[i]?names[1]:names[0]}?`,"n",Math.abs(a[i]-b[i]),
+      [key,`At ${times[i]}: ${names[0]} = ${a[i]}, ${names[1]} = ${b[i]}.`,`Difference = ${Math.max(a[i],b[i])} − ${Math.min(a[i],b[i])} = ${Math.abs(a[i]-b[i])} ${unit}.`],{f:fig});},
+    ()=>{if(i===j||a[i]===a[j])return null;const [x,y]=i<j?[i,j]:[j,i];const d=a[y]-a[x];
+      return pq(T,O,`By how much did ${names[0]} ${d>0?"rise":"fall"} between ${times[x]} and ${times[y]}?`,"n",Math.abs(d),
+        [key,`${names[0]} at ${times[x]}: ${a[x]}. At ${times[y]}: ${a[y]}.`,`Change = ${Math.max(a[x],a[y])} − ${Math.min(a[x],a[y])} = ${Math.abs(d)} ${unit}.`],{f:fig});},
+    ()=>{const mx=Math.max(...b);if(b.filter(v=>v===mx).length>1)return null;const k=b.indexOf(mx);
+      return pmc(T,O,`At what time was ${names[1]} at its highest?`,times[k],times,[key,`Find the highest point on the ${names[1]} line.`,`It is ${mx} ${unit}, at ${times[k]}.`],{f:fig});},
+    ()=>{const k=a.findIndex((v,x)=>v>=a[0]+2*st&&x>0);if(k<1)return null;const hrs=(k)*2;
+      return pq(T,O,`How many hours after ${times[0]} did ${names[0]} first reach ${a[k]} ${unit}?`,"n",hrs,
+        [key,`Follow the ${names[0]} line from ${times[0]}: it first reaches ${a[k]} at ${times[k]}.`,`Time difference = ${times[k]} − ${times[0]} = ${hrs} hours.`],{f:fig});},
+  ];
+  return PK(kinds)();
+}
+
+/* ---------- 7. reasoning: the traps from the test (mean with a 0, choosing a player, median and range together, HCF or LCM) ---------- */
+function genReason(){
+  const kinds=[
+    ()=>{const d=Array.from({length:5},()=>PR(1,5)), S=sum(d), m=S/5;
+      return pmc("Statistics","Understand how the mean changes",`Five houses have ${d.join(", ")} children. A sixth house with 0 children is added. What happens to the mean?`,"It goes down",["It goes up","It stays the same","You cannot tell"],
+        [`Use the numbers in the question, not a guess about the new house: it has 0 children.`,`Mean now = ${S} ÷ 5 = ${pn(m)}. With the sixth house: ${S} + 0 = ${S}, divided by 6 = ${pn(S/6)}.`,`The total stays the same but is shared by more houses, so the mean goes down.`]);},
+    ()=>{const mA=PR(12,18), mB=mA+PR(1,3), rA=PR(2,5), rB=rA+PR(8,15);
+      return pmc("Statistics","Compare data using the mean and the range",`Amy: mean score ${mA}, range ${rA}. Beth: mean score ${mB}, range ${rB}. The coach needs someone who scores well every time. Who should she choose and why?`,
+        `Amy: her range is smaller, so she is more consistent`,[`Beth: her mean is higher`,`Beth: her range is bigger`,`Amy: her mean is lower`],
+        [`"Scores well every time" is about consistency, and consistency is shown by the range.`,`Amy's range ${rA} is much smaller than Beth's ${rB}: Amy's scores are close together.`,`Beth's mean is a little higher (${mB} vs ${mA}), but her scores vary a lot. Choose Amy, and give the reason using the range.`]);},
+    ()=>{const A=Array.from({length:7},()=>PR(10,30)).sort((x,y)=>x-y), B=Array.from({length:7},()=>PR(5,35)).sort((x,y)=>x-y);
+      const mA=A[3], mB=B[3], rA=A[6]-A[0], rB=B[6]-B[0]; if(mA===mB||rA===rB)return null;
+      const hi=mA>mB?"Class A":"Class B", con=rA<rB?"Class A":"Class B";
+      const right=`${hi} has the higher median, so did better on average; ${con} has the smaller range, so was more consistent`;
+      return pmc("Statistics","Compare two sets of data",`Test marks. Class A: ${shuffle(A).join(", ")}. Class B: ${shuffle(B).join(", ")}. Which is the best comparison?`,right,
+        [`${hi} did better because its top mark is higher`,`${hi===con?(hi==="Class A"?"Class B":"Class A"):con} has the higher median and the smaller range`,`They are the same because they both have 7 marks`],
+        [`A full comparison talks about two things: an average (median) and the spread (range).`,`Class A in order: ${A.join(", ")}: median ${mA}, range ${A[6]} − ${A[0]} = ${rA}. Class B in order: ${B.join(", ")}: median ${mB}, range ${B[6]} − ${B[0]} = ${rB}.`,`Higher median → better on average (${hi}). Smaller range → more consistent (${con}).`]);},
+    ()=>{const d=Array.from({length:5},()=>PR(1,20)); const s=d.slice().sort((x,y)=>x-y); if(d[2]===s[2]||new Set(d).size<5)return null;
+      return pmc("Statistics","Find the median",`Sam says the median of ${d.join(", ")} is ${d[2]}, because it is in the middle. What did Sam do wrong?`,`He did not put the numbers in order first: the median is ${s[2]}`,
+        [`Nothing: the median is ${d[2]}`,`He should have added them: the median is ${sum(d)}`,`He should take the largest: the median is ${s[4]}`],
+        [`Always put the numbers in order before finding the middle one.`,`In order: ${s.join(", ")}.`,`The middle (3rd) number is ${s[2]}, so the median is ${s[2]}.`]);},
+    ()=>{const [a,b]=PK([[12,18],[8,12],[6,15],[10,15],[9,12],[14,21],[16,24],[20,30]]), h=pgcd(a,b), l=a*b/h, want=Math.random()<.5?"HCF":"LCM";
+      return pmc("Factors, multiples and primes","Tell HCF and LCM apart",`What is the ${want==="HCF"?"highest common factor (HCF)":"lowest common multiple (LCM)"} of ${a} and ${b}?`,String(want==="HCF"?h:l),
+        [String(want==="HCF"?l:h),String(a*b),String(want==="HCF"?Math.min(a,b):Math.max(a,b))],
+        [`HCF = the biggest number that divides into both (a factor, so it is small). LCM = the smallest number both divide into (a multiple, so it is big).`,`Factors of ${a}: ${facs(a).join(", ")}; of ${b}: ${facs(b).join(", ")} → HCF = ${h}.`,`Multiples of ${a}: ${Array.from({length:l/a},(_,k)=>(k+1)*a).join(", ")}; of ${b}: ${Array.from({length:l/b},(_,k)=>(k+1)*b).join(", ")} → LCM = ${l}.`]);},
+    ()=>{const x=PK([36,72,108,144,180,216,252,288]);
+      return pmc("Factors, multiples and primes","Sort numbers in a Venn diagram",`Which region does ${x} go in?`,"g",["d","e","a","h (outside)"],
+        [`Test all three: ${RULE[3](x)}; ${RULE[4](x)}; ${RULE[9](x)}.`,`It divides by 3, by 4 and by 9.`,`A number in all three circles goes in the middle, where all three overlap: region g.`],{f:{t:"p-venn3",A:"÷ 3",B:"÷ 4",C:"÷ 9"}});},
+  ];
+  return PK(kinds)();
+}
+
 const PAPER_TYPES=[
   {k:"bars",name:"Bar charts",about:"Compound and comparative bar charts: read the key, totals, differences",gen:genBars},
   {k:"stats",name:"Mean, median, range and mode",about:"Averages, comparing two sets of data, the modal class",gen:genStats},
   {k:"venn",name:"Divisibility and Venn diagrams",about:"Rules for 3, 4 and 9; sorting numbers into Venn diagrams",gen:genVenn},
   {k:"factors",name:"Factors, HCF and LCM",about:"Factor pairs, factor Venn diagrams, highest common factor, lowest common multiple",gen:genFactors},
   {k:"freq",name:"Tally charts and frequency diagrams",about:"Tallies, grouped data, histograms, \"at least\" questions",gen:genFreq},
+  {k:"line",name:"Line graphs",about:"Starting values, differences, rises and falls, time gaps",gen:genLine},
+  {k:"reason",name:"Explain and compare",about:"Mean with a 0 added, choosing a player, median and range together, HCF or LCM",gen:genReason},
 ];
 const PAPER_BY=Object.fromEntries(PAPER_TYPES.map(p=>[p.k,p]));
 let paperSeq=0;
@@ -209,6 +269,36 @@ function paperSet(key,n=MTOPIC){
   }
   return ids;
 }
+/* ---------- 每日试卷题 · 16 test-paper questions a day ----------
+   Up to 5 test-paper questions got wrong before come back first (until they are answered right), then new
+   ones, taking the types in turn with more of the harder ones (statistics, averages and reasoning).
+   The set is saved with the day (book.maths.days["y7:pp-<date>"]) so it is the same on every device. */
+const PP_N=16, PP_ORDER=["stats","bars","reason","freq","venn","line","factors","stats","reason","bars","freq","line","venn","reason","factors","stats"];
+const ppKey=d=>"pp-"+d;
+function paperDaily(date=today()){
+  const M=MB(), key=ppKey(date), ex=dayOf(key);
+  if(ex&&(ex.ids||[]).length){if(ex.gq)for(const [id,q] of Object.entries(ex.gq))MQ[id]=q;return ex;}
+  registerMistakes();
+  const retry=Object.entries(M.q).filter(([id,s])=>id.startsWith("w:")&&s.ok===false&&s.q&&s.q.pg&&PAPER_BY[s.q.pg]&&(s.last||"")<date).sort((a,b)=>(a[1].last||"")<(b[1].last||"")?-1:1).slice(0,5).map(x=>x[0]);
+  const gq={}, ids=[...retry], seen=new Set(); let k=0;
+  for(let g=0;ids.length<PP_N&&g<600;g++){
+    const p=PAPER_BY[PP_ORDER[(k+Math.floor(pdate(date)/864e5))%PP_ORDER.length]], q=p.gen();
+    if(!q||seen.has(q.q)||(q.k==="n"&&!Number.isFinite(q.a)))continue;
+    seen.add(q.q); k++; const id=`g:pp:${date}:${ids.length}`; gq[id]={...q,id,gen:p.k}; MQ[id]=gq[id]; ids.push(id);
+  }
+  M.days[DAYP+key]={ids,ans:{},gq,u:Date.now()}; Store.save();
+  return M.days[DAYP+key];
+}
+function openPaperDaily(){const d=paperDaily(), left=d.ids.filter(id=>!(id in d.ans)&&MQ[id]);
+  openMaths({kind:"topic",topic:"Test paper daily · 每日试卷题",ids:left.length?left:d.ids.filter(id=>MQ[id]),ppDay:ppKey(today())});}
+function paperDailyCard(){
+  const d=dayOf(ppKey(today())), n=d?d.ids.length:PP_N, a=d?Object.values(d.ans||{}):[], r=a.filter(x=>x.ok).length;
+  return `<div class="card maths-card"><div class="badge lg" style="background:var(--c-purple,#7a5af8);color:#fff">${ic("doc")}</div>
+    <div class="grow stack tight" style="gap:4px"><span class="kind-tag">Test paper daily · 每日试卷题</span><h3 style="margin:0">${PP_N} questions like the school test</h3>
+      <div class="muted small">${a.length?`${a.length} of ${n} done · ${r} right`:"Charts, averages, Venn diagrams, HCF and LCM, line graphs, explaining. Wrong ones come back until right."}</div></div>
+    <button class="btn primary" data-ppdaily>${a.length>=n?"See again":a.length?"Continue":"Start"}</button></div>`;
+}
+document.addEventListener("click",e=>{const b=e.target.closest&&e.target.closest("[data-ppdaily]");if(b&&Store.book){e.preventDefault();openPaperDaily();}});
 const paperStat=k=>MB().q["p:"+k]||{n:0,r:0};
 function paperSection(){
   return `<div class="section-title"><h3 style="margin:0">Test paper practice</h3><span class="muted small">New numbers every time · step-by-step working</span></div>
@@ -234,6 +324,15 @@ function paperFig(f){
       else{const w=bw*.32;f.series.forEach((sr,j)=>{const v=sr.values[i];s+=`<rect x="${x+bw*.16+j*w}" y="${Y(v)}" width="${w}" height="${Y(0)-Y(v)}" class="p-s${j}"/>`;});}
       s+=tx(x+bw/2,B+18,l);});
     s=tx(L,16,f.title,"ttl","start")+f.series.map((sr,j)=>`<rect x="${L+j*120}" y="24" width="12" height="12" rx="2" class="p-s${j}"/>`+tx(L+j*120+18,34,sr.name,"tick","start")).join("")+s;
+    vb="0 0 380 226";
+  }else if(f.t==="p-line"){
+    const L=44,R=360,T=44,B=200, all=[...f.series[0].values,...f.series[1].values], lo=Math.min(0,...all), mx=Math.max(...all);
+    const step=mx-lo>40?10:mx-lo>20?5:2, top=Math.ceil(mx/step)*step+step, Y=v=>B-(v-lo)/(top-lo)*(B-T), n=f.labels.length, X=i=>L+14+i*(R-L-28)/(n-1);
+    for(let v=lo;v<=top;v+=step)s+=`<line x1="${L}" x2="${R}" y1="${Y(v)}" y2="${Y(v)}" class="${v===lo?"axis":"grid"}"/>`+tx(L-6,Y(v)+4,String(v),"tick","end");
+    f.labels.forEach((l,i)=>s+=tx(X(i),B+18,l));
+    f.series.forEach((sr,j)=>{s+=`<polyline points="${sr.values.map((v,i)=>`${X(i)},${Y(v)}`).join(" ")}" class="p-ln${j}" fill="none"/>`;
+      sr.values.forEach((v,i)=>s+=j?`<rect x="${X(i)-4}" y="${Y(v)-4}" width="8" height="8" class="p-s1"/>`:`<circle cx="${X(i)}" cy="${Y(v)}" r="4.5" class="p-s0"/>`);});
+    s=tx(L,16,`${f.title} (${f.unit})`,"ttl","start")+f.series.map((sr,j)=>(j?`<rect x="${L+j*120}" y="25" width="10" height="10" class="p-s1"/>`:`<circle cx="${L+5}" cy="30" r="5" class="p-s0"/>`)+tx(L+j*120+18,34,sr.name,"tick","start")).join("")+s;
     vb="0 0 380 226";
   }else if(f.t==="p-venn2"){
     vb="0 0 360 230";

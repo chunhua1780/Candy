@@ -831,3 +831,4 @@ html:not(.zh-on) .zh{display:none}
 .zh-float{position:fixed;right:14px;top:14px;z-index:30;box-shadow:var(--shadow)}
 .nf-lv .zh-t{background:none;padding:0;color:inherit;opacity:.85}
 .chip .zh-t{display:none!important}
+.p-fig .p-ln0{stroke:var(--c-blue);stroke-width:3} .p-fig .p-ln1{stroke:color-mix(in srgb,var(--c-orange) 75%,var(--paper));stroke-width:3;stroke-dasharray:6 4}

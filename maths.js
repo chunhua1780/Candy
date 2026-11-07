@@ -264,6 +264,7 @@ function viewMaths(){
       <div class="kpi"><b>${seen}<small>/${MATHS.length}</small></b><span>of the question bank</span></div>
     </div>
     ${checkupCard()}
+    ${typeof paperDailyCard==="function"?paperDailyCard():""}
     ${mistakesCard()}
     ${REVIEW_SET.length?`<div class="section-title"><h3 style="margin:0">Fractional thinking</h3><span class="muted small">Year 7 fraction calculations · ${MTOPIC} questions at a time</span></div>
     <div class="topics">${REVIEW_SET.map(t=>topicTile(t,ts[t])).join("")}</div>`:""}
@@ -360,7 +361,7 @@ function answer(q,v){
 function record(q,ok,given){
   const M=MB(), t=today(), key=q.gen?"p:"+q.gen:q.id, s=M.q[key]||{}; // generated questions keep one record per type
   M.q[key]={n:(s.n||0)+1,r:(s.r||0)+(ok?1:0),ok,last:t,u:Date.now(),...(s.q?{q:s.q}:{})};
-  if(q.gen&&!ok){const {id,gen,...keep}=q;M.q["w:"+String(q.id).replace(/^g[a-z]*:/,"")]={n:1,r:0,ok:false,last:t,u:Date.now(),q:keep};} // generated question got wrong: keep it for the mistakes list
+  if(q.gen&&!ok){const {id,gen,...keep}=q;M.q["w:"+String(q.id).replace(/^g[a-z]*:/,"")]={n:1,r:0,ok:false,last:t,u:Date.now(),q:{...keep,pg:gen}};} // generated question got wrong: keep it for the mistakes list
   const L=M.log[t]=M.log[t]||{n:0,r:0}; L.n++; if(ok)L.r++;
   if(q.gen){const g=q.gen.startsWith("fm-")?"fm":q.gen.startsWith("rv-")?"rv":"pp",G=M.log[g+":"+t]=M.log[g+":"+t]||{n:0,r:0};G.n++;if(ok)G.r++;G.u=Date.now();} // per-day counts for formulas, brush-up and test paper (must.js)
   if(MS.kind==="day"){const d=dayOf(MS.date);d.ans[q.id]={v:String(given).slice(0,20),ok,tries:MS.tries};d.u=Date.now();}
@@ -369,6 +370,7 @@ function record(q,ok,given){
   // every answer of the day, for the parent page: the question, the child's answer, the right answer
   try{const H=M.hist[t]=M.hist[t]||[],n=new Date();if(H.length<400)H.push({q:String(q.q||"").slice(0,240),a:String(showAns(q)).slice(0,40),v:String(given==null?"":given).slice(0,40),ok,
     s:MS.kind==="day"?"Daily 20":MS.kind==="test"?"Test":MS.fix?"Fix mistakes":String(MS.topic||"Practice").slice(0,40),tr:MS.tries||1,f:q.fig?1:0,tm:String(n.getHours()).padStart(2,"0")+":"+String(n.getMinutes()).padStart(2,"0")});}catch(e){}
+  if(MS.ppDay){const d=dayOf(MS.ppDay);if(d){d.ans[q.id]={v:String(given).slice(0,20),ok,tries:MS.tries};d.u=Date.now();}} // 每日试卷题 progress
   MS.res[q.id]=ok; Store.save();
 }
 function nextQ(){MS.i++;MS.exp=0;MS.tries=0;MS.input="";MS.state="ask";MS.wrongPick=[];renderMQ();window.scrollTo(0,0);$("#mBody").scrollTop=0;}
