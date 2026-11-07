@@ -97,6 +97,7 @@
 <script src="review-gen.js"></script>
 <script src="checkup.js"></script>
 <script src="shapes.js"></script>
+<script src="diary.js"></script>
 <script src="must.js"></script>
 <script>
 "use strict";
@@ -549,8 +550,16 @@ function viewToday(){
       <div class="badge ${l.test?"orange":""}">${ic(l.test?"doc":"calendar")}</div><div class="grow"><div class="ttl">${esc(niceDate(l.date))}${l.title?` · ${esc(l.title)}`:""}</div><div class="sub">${p.fresh.length?`${p.fresh.length} new`:""}${p.fresh.length&&p.review.length?" · ":""}${p.review.length?`${p.review.length} to review`:""}</div></div>
       <span class="pill-count">${p.fresh.length+p.review.length}</span><span class="chev">${ic("chevron")}</span></button>`).join("")}</div></div>`:""}
     ${mathsCard()}
+    ${diaryCard()}
     ${readingCard()}
   </div>`;
+}
+function diaryCard(){
+  const d=((B().eng||{}).diary||{})[today()]||{}, n=wordsOfText(d.text||"").length;
+  return `<div class="card maths-card"><div class="badge lg">${ic("pencil")}</div>
+    <div class="grow stack tight" style="gap:4px"><span class="kind-tag">${ic("pencil")}Writing · 日记</span><h3 style="margin:0">Today’s diary</h3>
+      <div class="muted small">${d.done?`Handed in · ${n} words${(d.fix||[]).length?` · ${d.fix.length} spelling${d.fix.length>1?"s":""} to learn`:" · no spelling mistakes"}`:n?`${n} of ${DIARY_TARGET()} words`:`About ${DIARY_TARGET()} words about your day`}</div></div>
+    <button class="btn primary" data-diary>${d.done?"See it":n?"Continue":"Start"}</button></div>`;
 }
 
 const SUBSETS={all:["All words",ws=>ws],new:["Not learned yet",ws=>ws.filter(w=>w.stage===0)],unseen:["Not practised yet",ws=>ws.filter(w=>!(w.seen>0))],hard:["Tricky",ws=>ws.filter(w=>(w.lapses||0)>0)]};

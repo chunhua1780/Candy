@@ -69,6 +69,7 @@ details.list[open] .chev{transform:rotate(90deg)}
 <script src="maths.js"></script>
 <script src="paper.js"></script>
 <script src="checkup.js"></script>
+<script src="diary.js"></script>
 <script src="must.js"></script>
 <script>
 "use strict";
@@ -204,6 +205,8 @@ function viewDash(){
   return `<div class="stack">
     <div><div class="eyebrow">${esc(niceDate(t))}</div><h1>${esc(b.name)}</h1></div>
     ${mustParent()}
+    ${histBlock()}
+    ${diaryParent()}
     <div class="kpis">
       <div class="kpi"><b>${streakOf(b.log)}</b><span>day streak</span></div>
       <div class="kpi"><b>${(b.log[t]||{}).done||0}</b><span>words practised today</span></div>
@@ -277,6 +280,7 @@ async function readDocFile(f){
 }
 function bind(){
   if(typeof mustParentBind==="function")mustParentBind();
+  histBind(); diaryParentBind();
   const cu=$("#cuUnit"); if(cu)cu.onchange=()=>{cuSetUnit(cu.value);render();};
   const f=$("#authForm");
   if(f)f.onsubmit=async e=>{
