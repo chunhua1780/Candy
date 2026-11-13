@@ -69,6 +69,7 @@ details.list[open] .chev{transform:rotate(90deg)}
 <script src="maths.js"></script>
 <script src="paper.js"></script>
 <script src="checkup.js"></script>
+<script src="ai.js"></script>
 <script src="diary.js"></script>
 <script src="must.js"></script>
 <script>
@@ -205,6 +206,7 @@ function viewDash(){
   return `<div class="stack">
     <div><div class="eyebrow">${esc(niceDate(t))}</div><h1>${esc(b.name)}</h1></div>
     ${mustParent()}
+    ${aiParent()}
     ${histBlock()}
     ${diaryParent()}
     <div class="kpis">
@@ -280,7 +282,7 @@ async function readDocFile(f){
 }
 function bind(){
   if(typeof mustParentBind==="function")mustParentBind();
-  histBind(); diaryParentBind();
+  histBind(); diaryParentBind(); aiParentBind();
   const cu=$("#cuUnit"); if(cu)cu.onchange=()=>{cuSetUnit(cu.value);render();};
   const f=$("#authForm");
   if(f)f.onsubmit=async e=>{

@@ -832,3 +832,16 @@ html:not(.zh-on) .zh{display:none}
 .nf-lv .zh-t{background:none;padding:0;color:inherit;opacity:.85}
 .chip .zh-t{display:none!important}
 .p-fig .p-ln0{stroke:var(--c-blue);stroke-width:3} .p-fig .p-ln1{stroke:color-mix(in srgb,var(--c-orange) 75%,var(--paper));stroke-width:3;stroke-dasharray:6 4}
+.nf-tri.mul .nf-cell{font-size:clamp(11px,1.9vw,15px);padding:3px 0;line-height:1.15}
+.nf-tri.mul .nf-e,.nf-tri.mul .nf-v{display:block}
+/* Google AI marking and reports (ai.js) */
+.ai-card{border:2px solid color-mix(in srgb,var(--c-purple,#7a5af8) 40%,transparent);background:color-mix(in srgb,var(--c-purple,#7a5af8) 6%,var(--paper))}
+.ai-score{font:800 34px var(--round);color:var(--c-purple,#7a5af8)} .ai-score small{font-size:16px;color:var(--muted)}
+.ai-parts{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:4px 16px}
+.ai-part{display:grid;grid-template-columns:7.5em 1fr 1.6em;gap:8px;align-items:center;font-size:14px}
+.ai-bar{height:8px;border-radius:4px;background:color-mix(in srgb,var(--fg) 10%,transparent);overflow:hidden}
+.ai-bar i{display:block;height:100%;background:var(--c-purple,#7a5af8)}
+.ai-list{margin:4px 0 0;padding-left:20px} .ai-list li{margin:3px 0}
+.ai-ex{padding:8px 12px;border-radius:10px;background:var(--paper);font-size:15px}
+.ai-md h4{margin:12px 0 4px;font-size:17px} .ai-md ul{margin:4px 0;padding-left:20px} .ai-md li{margin:3px 0} .ai-md p{margin:4px 0}
+.ai-rep summary{cursor:pointer;padding:6px 0}
