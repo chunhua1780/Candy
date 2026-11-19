@@ -69,8 +69,10 @@ details.list[open] .chev{transform:rotate(90deg)}
 <script src="maths.js"></script>
 <script src="paper.js"></script>
 <script src="checkup.js"></script>
+<script src="vocab.js"></script>
 <script src="ai.js"></script>
 <script src="diary.js"></script>
+<script src="report.js"></script>
 <script src="must.js"></script>
 <script>
 "use strict";
@@ -205,7 +207,9 @@ function viewDash(){
   if(planOpen>planDate)planOpen=planDate;
   return `<div class="stack">
     <div><div class="eyebrow">${esc(niceDate(t))}</div><h1>${esc(b.name)}</h1></div>
+    <div class="card stack">${reportHtml(B())}</div>
     ${mustParent()}
+    ${customWordsBlock()}
     ${aiParent()}
     ${histBlock()}
     ${diaryParent()}
@@ -282,7 +286,7 @@ async function readDocFile(f){
 }
 function bind(){
   if(typeof mustParentBind==="function")mustParentBind();
-  histBind(); diaryParentBind(); aiParentBind();
+  histBind(); diaryParentBind(); aiParentBind(); customWordsBind(); reportBind();
   const cu=$("#cuUnit"); if(cu)cu.onchange=()=>{cuSetUnit(cu.value);render();};
   const f=$("#authForm");
   if(f)f.onsubmit=async e=>{
