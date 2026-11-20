@@ -247,6 +247,90 @@ function genReason(){
   return PK(kinds)();
 }
 
+
+/* ---------- 8. pie charts: angle per item, each angle, checking that they add to 360° ---------- */
+function genPie(){
+  const T="Statistics", O1="Pie charts: angle for one item", O2="Pie charts: work out the angles", O3="Pie charts: read a pie chart", O4="Pie charts: check the angles";
+  const [title,unit,cats]=PK([["Favourite sports","pupils",["Football","Swimming","Tennis","Netball","Rugby"]],["How pupils travel to school","pupils",["Walk","Car","Bus","Bike","Train"]],
+    ["Favourite fruit","people",["Apples","Bananas","Grapes","Oranges","Pears"]],["Pets owned","children",["Dogs","Cats","Fish","Rabbits","Birds"]],["Lunch choices","pupils",["Pizza","Pasta","Salad","Soup","Sandwiches"]]]);
+  const N=PK([12,18,20,24,30,36,40,45,60,72,90,120]), per=360/N, k=PR(3,Math.min(5,N>=20?5:4));
+  let f=[]; for(let g=0;g<200;g++){const cut=[...new Set(Array.from({length:k-1},()=>PR(1,N-1)))].sort((a,b)=>a-b);if(cut.length!==k-1)continue;f=[cut[0],...cut.slice(1).map((c,i)=>c-cut[i]),N-cut[k-2]];if(f.every(x=>x*per>=24))break;f=[];}
+  if(f.length!==k)return null; // every slice at least 24°, so it can be read and labelled
+  const names=cats.slice(0,k), ang=f.map(x=>x*per), i=PR(0,k-1), tbl={t:"table",head:["Category","Frequency"],rows:[...names.map((c,j)=>[c,String(f[j])]),["Total",String(N)]]};
+  const kinds=[
+    ()=>pq(T,O1,`${N} ${unit} were asked about "${title.toLowerCase()}". You draw a pie chart. How many degrees stand for one person?`,"n",per,
+      [`A whole pie chart (a full circle) is 360°.`,`Share the 360° between all ${N} ${unit}: 360 ÷ ${N}.`,`360 ÷ ${N} = ${pn(per)}°, so each person is ${pn(per)}°.`],{u:"°"}),
+    ()=>pq(T,O2,`The table shows ${title.toLowerCase()} for ${N} ${unit}. You draw a pie chart. What is the angle for ${names[i]}?`,"n",ang[i],
+      [`Angle for one person: 360° ÷ ${N} = ${pn(per)}°.`,`${names[i]} has ${f[i]} ${unit}.`,`Angle = ${f[i]} × ${pn(per)}° = ${pn(ang[i])}°.`],{u:"°",f:tbl}),
+    ()=>pq(T,O3,`This pie chart shows ${title.toLowerCase()} for ${N} ${unit}. How many ${unit} chose ${names[i]}?`,"n",f[i],
+      [`The whole circle (360°) is all ${N} ${unit}, so one person is 360 ÷ ${N} = ${pn(per)}°.`,`The ${names[i]} slice is ${pn(ang[i])}°.`,`Number = ${pn(ang[i])} ÷ ${pn(per)} = ${f[i]} ${unit}.`],{f:{t:"p-pie",title,names,ang,show:true}}),
+    ()=>{const known=ang.filter((_,j)=>j!==i);
+      return pq(T,O4,`In a pie chart the angles for ${names.filter((_,j)=>j!==i).join(", ")} are ${known.map(a=>pn(a)+"°").join(", ")}. What must the angle for ${names[i]} be?`,"n",ang[i],
+        [`All the angles in a pie chart add up to 360°.`,`Add the ones you know: ${known.map(pn).join(" + ")} = ${pn(sum(known))}°.`,`${names[i]} = 360 − ${pn(sum(known))} = ${pn(ang[i])}°.`],{u:"°"});},
+    ()=>{const bad=ang.slice(); bad[i]+=PK([-10,10,-5,5,20]); const tot=sum(bad); if(tot===360)return null;
+      return pmc(T,O4,`Sam worked out these pie chart angles: ${names.map((c,j)=>`${c} ${pn(bad[j])}°`).join(", ")}. What does this tell you?`,"There is a mistake: the angles must add up to 360°",
+        ["The pie chart is correct","There is a mistake: the angles must add up to 180°","It is correct because every slice has an angle"],
+        [`Check a pie chart by adding all the angles: they must make a full turn, 360°.`,`${bad.map(pn).join(" + ")} = ${pn(tot)}°, not 360°.`,`So at least one angle is wrong. (Each angle = frequency × ${pn(per)}°.)`]);},
+    ()=>{const j=(i+1)%k; if(f[i]===f[j])return null; const more=f[i]>f[j]?names[i]:names[j];
+      return pq(T,O3,`In this pie chart of ${N} ${unit}, how many more ${unit} chose ${more} than ${more===names[i]?names[j]:names[i]}?`,"n",Math.abs(f[i]-f[j]),
+        [`One person = 360 ÷ ${N} = ${pn(per)}°.`,`${names[i]}: ${pn(ang[i])} ÷ ${pn(per)} = ${f[i]}. ${names[j]}: ${pn(ang[j])} ÷ ${pn(per)} = ${f[j]}.`,`Difference = ${Math.abs(f[i]-f[j])} ${unit}.`],{f:{t:"p-pie",title,names,ang,show:true}});},
+  ];
+  return PK(kinds)();
+}
+
+/* ---------- 9. spreadsheets: cell references and formulas ---------- */
+function genSheet(){
+  const T="Spreadsheets";
+  const cols=["A","B","C","D"], R=5, item=PK([["Item","Price (£)","Number","Cost (£)"],["Pupil","Maths","English","Science"],["Day","Cakes","Cookies","Pies"]]);
+  const names=item[0]==="Item"?shuffle(["Pens","Rulers","Books","Glue","Paper"]):item[0]==="Pupil"?shuffle(["Amy","Ben","Chen","Dina","Eli"]):["Mon","Tue","Wed","Thu","Fri"];
+  const rows=Array.from({length:R-1},(_,r)=>[names[r],...[1,2].map(()=>PR(2,30))]);
+  const grid=[item.slice(0,3),...rows.map(r=>r.map(String))]; // rows 1..R, columns A..C
+  const cell=(c,r)=>grid[r-1][cols.indexOf(c)], fig=hl=>({t:"p-sheet",grid,hl});
+  const c=PK(["B","C"]), r1=2, rN=R, vals=[...Array(rN-r1+1)].map((_,k)=>+cell(c,r1+k)), rr=PR(2,R), nm=cell("A",rr);
+  const kinds=[
+    ()=>pmc(T,"Spreadsheets: cell references",`Which cell contains "${nm}"?`,`A${rr}`,[`${rr}A`,`B${rr}`,`A${rr===2?3:rr-1}`,`${rr}`],
+      [`A cell reference is the column letter, then the row number.`,`"${nm}" is in column A.`,`It is in row ${rr}, so the cell is A${rr}.`],{f:fig([`A${rr}`])}),
+    ()=>pq(T,"Spreadsheets: cell references",`What number is in cell ${c}${rr}?`,"n",+cell(c,rr),
+      [`Go to column ${c} (across the top).`,`Go down to row ${rr} (down the side).`,`Cell ${c}${rr} contains ${cell(c,rr)}.`],{f:fig([])}),
+    ()=>pq(T,"Spreadsheets: SUM formulas",`Cell ${c}${R+1} contains the formula =SUM(${c}${r1}:${c}${rN}). What number does it show?`,"n",sum(vals),
+      [`=SUM(${c}${r1}:${c}${rN}) adds every cell from ${c}${r1} down to ${c}${rN}.`,`Those cells are ${vals.join(", ")}.`,`${vals.join(" + ")} = ${sum(vals)}.`],{f:fig([`${c}${r1}:${c}${rN}`])}),
+    ()=>pmc(T,"Spreadsheets: SUM formulas",`Which formula adds up all the numbers from ${c}${r1} to ${c}${rN}?`,`=SUM(${c}${r1}:${c}${rN})`,[`SUM(${c}${r1}:${c}${rN})`,`=SUM(${c}${r1}-${c}${rN})`,`=${c}${r1}+${c}${rN}`,`=SUM(${r1}${c}:${rN}${c})`],
+      [`A formula always starts with = .`,`SUM( … ) adds up a range of cells. A range is written first cell : last cell.`,`So =SUM(${c}${r1}:${c}${rN}). (=${c}${r1}+${c}${rN} would add only the first and last cells.)`],{f:fig([])}),
+    ()=>{const a=PR(2,R); let b=PR(2,R); if(a===b)b=a===R?2:a+1; const x=+cell(c,a),y=+cell(c,b);
+      return pq(T,"Spreadsheets: formulas",`Cell D2 contains =${c}${a}+${c}${b}. What number does it show?`,"n",x+y,[`${c}${a} is ${x} and ${c}${b} is ${y}.`,`=${c}${a}+${c}${b} adds them: ${x} + ${y} = ${x+y}.`],{f:fig([`${c}${a}`,`${c}${b}`])});},
+    ()=>{const x=+cell("B",rr),y=+cell("C",rr);
+      return pq(T,"Spreadsheets: formulas",`Cell D${rr} contains =B${rr}*C${rr}. What number does it show?`,"n",x*y,[`In a spreadsheet * means × (multiply).`,`B${rr} is ${x} and C${rr} is ${y}.`,`${x} × ${y} = ${x*y}.`],{f:fig([`B${rr}`,`C${rr}`])});},
+    ()=>pmc(T,"Spreadsheets: formulas",`What does ${c}${r1}:${c}${rN} mean in a formula?`,`All the cells from ${c}${r1} to ${c}${rN}`,[`Only cells ${c}${r1} and ${c}${rN}`,`${c}${r1} divided by ${c}${rN}`,`Row ${r1} to row ${rN} of every column`],
+      [`A colon : between two cells means a range: every cell from the first to the last.`,`So ${c}${r1}:${c}${rN} is ${[...Array(rN-r1+1)].map((_,k)=>c+(r1+k)).join(", ")}.`]),
+  ];
+  return PK(kinds)();
+}
+
+/* ---------- 10. range and consistency: comparing two sets of data ---------- */
+function genRange(){
+  const T="Statistics";
+  const P=shuffle(["Amir","Ben","Chloe","Dev","Ella","Finn"]).slice(0,2);
+  const mk=(lo,hi,n=6)=>Array.from({length:n},()=>PR(lo,hi));
+  const rng=a=>Math.max(...a)-Math.min(...a), mean=a=>sum(a)/a.length;
+  const kinds=[
+    ()=>{const a=mk(3,40,PR(6,8));if(!rng(a))return null;return pq(T,"Range: find the range",`${P[0]}'s quiz scores are ${a.join(", ")}. What is the range?`,"n",rng(a),
+      [`Range = largest value − smallest value.`,`Largest = ${Math.max(...a)}, smallest = ${Math.min(...a)}.`,`Range = ${Math.max(...a)} − ${Math.min(...a)} = ${rng(a)}.`]);},
+    ()=>{const lo=PR(2,20), r=PR(5,25);return pq(T,"Range: find a missing value",`A set of data has a range of ${r}. The smallest value is ${lo}. What is the largest value?`,"n",lo+r,
+      [`Range = largest − smallest, so largest = smallest + range.`,`Largest = ${lo} + ${r} = ${lo+r}.`]);},
+    ()=>{const A=mk(12,18),B=mk(4,30);if(rng(A)===rng(B))return null;const w=rng(A)<rng(B)?P[0]:P[1];
+      return pmc(T,"Range: who is more consistent",`${P[0]}'s scores: ${A.join(", ")}. ${P[1]}'s scores: ${B.join(", ")}. Who is more consistent?`,w,[P[0],P[1]],
+        [`Consistent = the scores stay close together. Use the range: the smaller range is more consistent.`,`${P[0]}: ${Math.max(...A)} − ${Math.min(...A)} = ${rng(A)}. ${P[1]}: ${Math.max(...B)} − ${Math.min(...B)} = ${rng(B)}.`,`${w} has the smaller range, so ${w} is more consistent.`]);},
+    ()=>{let A,B;for(let g=0;g<200;g++){A=mk(14,18);B=mk(8,30);if(mean(B)>mean(A)+1&&rng(B)>rng(A))break;}if(!(mean(B)>mean(A)&&rng(B)>rng(A)))return null;
+      return pmc(T,"Range: consistent or higher scores",`${P[0]}: ${A.join(", ")} (mean ${pn(mean(A))}). ${P[1]}: ${B.join(", ")} (mean ${pn(mean(B))}). Which statement is true?`,
+        `${P[1]} has higher scores on average, but ${P[0]} is more consistent`,[`${P[1]} is more consistent because the mean is higher`,`${P[0]} has higher scores and is more consistent`,`They are equally consistent`],
+        [`Two different questions: "higher scores" → compare the means; "more consistent" → compare the ranges.`,`Means: ${P[0]} ${pn(mean(A))}, ${P[1]} ${pn(mean(B))}, so ${P[1]} scores higher on average.`,`Ranges: ${P[0]} ${rng(A)}, ${P[1]} ${rng(B)}, so ${P[0]} is more consistent.`]);},
+    ()=>{const r1=PR(3,9),r2=PR(15,30);return pmc(T,"Range: what the range tells you",`Class X's test marks have a range of ${r1}. Class Y's have a range of ${r2}. What does this tell you?`,
+      `Class X's marks are closer together (more consistent)`,[`Class X did better in the test`,`Class Y did better in the test`,`Class Y's marks are more consistent`],
+      [`The range shows how spread out the data is, not how high it is.`,`A smaller range (${r1}) means the marks are closer together: more consistent.`,`To say who did better you would compare an average (mean or median), not the range.`]);},
+  ];
+  return PK(kinds)();
+}
+
 const PAPER_TYPES=[
   {k:"bars",name:"Bar charts",about:"Compound and comparative bar charts: read the key, totals, differences",gen:genBars},
   {k:"stats",name:"Mean, median, range and mode",about:"Averages, comparing two sets of data, the modal class",gen:genStats},
@@ -254,6 +338,9 @@ const PAPER_TYPES=[
   {k:"factors",name:"Factors, HCF and LCM",about:"Factor pairs, factor Venn diagrams, highest common factor, lowest common multiple",gen:genFactors},
   {k:"freq",name:"Tally charts and frequency diagrams",about:"Tallies, grouped data, histograms, \"at least\" questions",gen:genFreq},
   {k:"line",name:"Line graphs",about:"Starting values, differences, rises and falls, time gaps",gen:genLine},
+  {k:"pie",name:"Pie charts",about:"Angle for one item (360 ÷ total), each angle, reading a pie chart, checking the angles add up to 360°",gen:genPie},
+  {k:"sheet",name:"Spreadsheets and formulas",about:"Cell references (column letter + row number), =SUM(A1:A6), =A1+A2, =B2*C2",gen:genSheet},
+  {k:"range",name:"Range and consistency",about:"Range = largest − smallest; the smaller range is more consistent; higher scores ≠ more consistent",gen:genRange},
   {k:"reason",name:"Explain and compare",about:"Mean with a 0 added, choosing a player, median and range together, HCF or LCM",gen:genReason},
 ];
 const PAPER_BY=Object.fromEntries(PAPER_TYPES.map(p=>[p.k,p]));
@@ -273,13 +360,15 @@ function paperSet(key,n=MTOPIC){
    Up to 5 test-paper questions got wrong before come back first (until they are answered right), then new
    ones, taking the types in turn with more of the harder ones (statistics, averages and reasoning).
    The set is saved with the day (book.maths.days["y7:pp-<date>"]) so it is the same on every device. */
-const PP_N=16, PP_ORDER=["stats","bars","reason","freq","venn","line","factors","stats","reason","bars","freq","line","venn","reason","factors","stats"];
+const PP_N=16, PP_ORDER=["stats","pie","sheet","range","bars","reason","freq","venn","line","factors","pie","sheet","range","stats","reason","bars"];
 const ppKey=d=>"pp-"+d;
 function paperDaily(date=today()){
   const M=MB(), key=ppKey(date), ex=dayOf(key);
   if(ex&&(ex.ids||[]).length){if(ex.gq)for(const [id,q] of Object.entries(ex.gq))MQ[id]=q;return ex;}
   registerMistakes();
   const retry=Object.entries(M.q).filter(([id,s])=>id.startsWith("w:")&&s.ok===false&&s.q&&s.q.pg&&PAPER_BY[s.q.pg]&&(s.last||"")<date).sort((a,b)=>(a[1].last||"")<(b[1].last||"")?-1:1).slice(0,5).map(x=>x[0]);
+  retry.push(...Object.entries(M.q).filter(([id,s])=>id.startsWith("w:")&&s.ok===true&&s.fx&&!s.cf&&s.q&&s.q.pg&&PAPER_BY[s.q.pg]&&dayDiff(s.fx,date)>=6).slice(0,2).map(x=>x[0])); // put right a week ago: check it has stuck
+  registerMistakes(); for(const id of retry)if(!MQ[id]&&M.q[id].q)MQ[id]={...M.q[id].q,id};
   const gq={}, ids=[...retry], seen=new Set(); let k=0;
   for(let g=0;ids.length<PP_N&&g<600;g++){
     const p=PAPER_BY[PP_ORDER[(k+Math.floor(pdate(date)/864e5))%PP_ORDER.length]], q=p.gen();
@@ -325,6 +414,17 @@ function paperFig(f){
       s+=tx(x+bw/2,B+18,l);});
     s=tx(L,16,f.title,"ttl","start")+f.series.map((sr,j)=>`<rect x="${L+j*120}" y="24" width="12" height="12" rx="2" class="p-s${j}"/>`+tx(L+j*120+18,34,sr.name,"tick","start")).join("")+s;
     vb="0 0 380 226";
+  }else if(f.t==="p-pie"){
+    const cx=130,cy=128,R=92; let a0=-90; vb="0 0 380 240";
+    s=tx(16,18,f.title,"ttl","start");
+    f.ang.forEach((ang,j)=>{const a1=a0+ang,r=d=>d*Math.PI/180,x0=cx+R*Math.cos(r(a0)),y0=cy+R*Math.sin(r(a0)),x1=cx+R*Math.cos(r(a1)),y1=cy+R*Math.sin(r(a1));
+      s+=ang>=360?`<circle cx="${cx}" cy="${cy}" r="${R}" class="p-pie${j%5}"/>`:`<path d="M${cx} ${cy}L${x0.toFixed(1)} ${y0.toFixed(1)}A${R} ${R} 0 ${ang>180?1:0} 1 ${x1.toFixed(1)} ${y1.toFixed(1)}Z" class="p-pie${j%5}"/>`;
+      const m=r(a0+ang/2); if(f.show)s+=tx(cx+R*.62*Math.cos(m),cy+R*.62*Math.sin(m)+5,pn(ang)+"°","p-pl");
+      s+=`<rect x="250" y="${48+j*30}" width="14" height="14" rx="3" class="p-pie${j%5}"/>`+tx(272,60+j*30,f.names[j],"tick","start");
+      a0=a1;});
+  }else if(f.t==="p-sheet"){
+    const cols=["","A","B","C","D"], hl=new Set(); (f.hl||[]).forEach(h=>{const m=h.match(/^([A-D])(\d+)(?::([A-D])(\d+))?$/);if(!m)return;const c1=m[1],r1=+m[2],c2=m[3]||c1,r2=+(m[4]||m[2]);for(let r=r1;r<=r2;r++)for(let c=c1.charCodeAt(0);c<=c2.charCodeAt(0);c++)hl.add(String.fromCharCode(c)+r);});
+    return `<div class="m-table p-sheet"><table><thead><tr>${cols.map(c=>`<th>${c}</th>`).join("")}</tr></thead><tbody>${[...f.grid,...Array(Math.max(0,6-f.grid.length)).fill([])].map((row,ri)=>`<tr><th>${ri+1}</th>${[0,1,2,3].map(ci=>{const id=cols[ci+1]+(ri+1);return `<td class="${hl.has(id)?"hl":""}">${esc(row[ci]==null?"":row[ci])}</td>`;}).join("")}</tr>`).join("")}</tbody></table></div>`;
   }else if(f.t==="p-line"){
     const L=44,R=360,T=44,B=200, all=[...f.series[0].values,...f.series[1].values], lo=Math.min(0,...all), mx=Math.max(...all);
     const step=mx-lo>40?10:mx-lo>20?5:2, top=Math.ceil(mx/step)*step+step, Y=v=>B-(v-lo)/(top-lo)*(B-T), n=f.labels.length, X=i=>L+14+i*(R-L-28)/(n-1);

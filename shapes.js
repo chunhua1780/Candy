@@ -311,4 +311,4 @@ function shapesEntry(){
     <span class="muted small">See how each formula works with moving pictures, then remember them with flashcards and a picture quiz. ${lv} of ${FMS.length*3} stars.</span></span>
     <span class="chev">${ic("chevron")}</span></button>`;
 }
-$("#shClose").innerHTML=ic("x"); $("#shClose").onclick=closeShapes;
+{const c=document.getElementById("shClose");if(c){c.innerHTML=ic("x");c.onclick=closeShapes;}} // only the child page has the formula corner

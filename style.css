@@ -915,3 +915,48 @@ html:not(.zh-on) .zh{display:none}
 .tt-st{font-size:.8rem;text-align:right;white-space:nowrap}.tt-st small{display:block;color:var(--muted)}
 .tt-w.ok .tt-st{color:var(--green,#1a8f3c)}.tt-w.new .tt-st{color:var(--orange,#c25e00)}
 @media (max-width:560px){.tt-w{grid-template-columns:18px auto 1fr auto;gap:6px}.tt-w .wprac{grid-column:3/-1;justify-self:start}}
+
+/* pie charts and spreadsheets (paper.js) */
+.p-fig .p-pie0{fill:var(--c-blue);stroke:var(--paper);stroke-width:2}.p-fig .p-pie1{fill:var(--c-orange);stroke:var(--paper);stroke-width:2}
+.p-fig .p-pie2{fill:var(--c-teal);stroke:var(--paper);stroke-width:2}.p-fig .p-pie3{fill:var(--c-purple);stroke:var(--paper);stroke-width:2}.p-fig .p-pie4{fill:var(--c-pink);stroke:var(--paper);stroke-width:2}
+.p-fig .p-pl{fill:#fff;font:700 13px var(--round)}
+.p-sheet table{border-collapse:collapse;font:600 15px var(--body)}
+.p-sheet th{background:var(--soft);color:var(--muted);font-weight:700;min-width:28px}
+.p-sheet td,.p-sheet th{border:1px solid var(--line);padding:5px 10px;text-align:center}
+.p-sheet td{min-width:64px;background:var(--paper)}
+.p-sheet td.hl{background:color-mix(in srgb,var(--c-orange) 25%,var(--paper));outline:2px solid var(--c-orange)}
+
+/* 公式四步 · formulas in 4 steps (flad.js) */
+#flOv{position:fixed;inset:0;z-index:30;background:var(--bg);display:flex;flex-direction:column}
+#flOv[hidden]{display:none}
+#flOv .s-body{flex:1;overflow:auto}
+.fl-q{gap:14px}
+.fl-steps{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.fl-steps span{display:flex;flex-direction:column;align-items:center;gap:1px;padding:6px 4px;border-radius:12px;background:var(--soft,#f2f2f7);color:var(--muted);font-size:.85rem;font-weight:600}
+.fl-steps span b{font-size:1.1rem}.fl-steps small{font-size:.72rem;font-weight:400}
+.fl-steps span.on{background:var(--c-blue,#2f6fec);color:#fff}.fl-steps span.done{background:var(--green-soft,#e3f6e8);color:var(--green,#1a8f3c)}
+.fl-pic{max-width:360px;margin:0 auto;width:100%}.fl-pic.sm{max-width:240px}
+.fl-formula{display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px;border-radius:18px;background:var(--paper,#fff)}
+.fl-formula span{font:800 34px var(--round,inherit);color:var(--mc)}
+.fl-formula small{color:var(--muted);text-align:center}
+.fl-how,.fl-ex ol{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:6px;font-size:1.05rem}
+.fl-ex{background:var(--paper,#fff);border-radius:18px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.fl-glow{animation:flGlow 1.2s ease-in-out infinite;outline:3px solid var(--c-orange,#f08c00)}
+@keyframes flGlow{50%{box-shadow:0 0 0 8px color-mix(in srgb,var(--c-orange,#f08c00) 30%,transparent)}}
+.fl-shapes{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.fl-shape{position:relative;border:2px solid transparent;border-radius:16px;background:var(--paper,#fff);padding:6px}
+.fl-shape b{position:absolute;left:10px;top:6px;font-size:1.2rem}
+.fl-shape.right{border-color:var(--green,#1a8f3c)}.fl-shape.wrong{border-color:var(--red,#d33)}
+.fl-slots{display:flex;flex-wrap:wrap;justify-content:center;gap:8px;padding:14px;border-radius:18px;background:var(--paper,#fff)}
+.fl-slot{min-width:48px;height:56px;padding:0 10px;border-radius:12px;border:2px dashed var(--line,#ccc);background:transparent;font:800 26px var(--round,inherit);color:var(--fg)}
+.fl-slot.full{border-style:solid;border-color:var(--c-blue,#2f6fec);background:color-mix(in srgb,var(--c-blue,#2f6fec) 10%,transparent)}
+.fl-slot.good{border-color:var(--green,#1a8f3c);background:var(--green-soft,#e3f6e8)}.fl-slot.bad{border-color:var(--red,#d33);background:var(--red-soft,#fde8e8)}
+.fl-tiles{display:flex;flex-wrap:wrap;justify-content:center;gap:10px}
+.fl-tile{min-width:54px;height:58px;padding:0 12px;border-radius:14px;border:0;background:var(--c-blue,#2f6fec);color:#fff;font:800 26px var(--round,inherit);touch-action:none;box-shadow:0 3px 0 color-mix(in srgb,var(--c-blue,#2f6fec) 60%,#000)}
+.fl-tile:disabled{opacity:.2;box-shadow:none}
+.fl-pad .pad{height:200px}
+.fl-ladder{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;margin:8px 0}
+.fl-ladder span{background:var(--soft,#f2f2f7);border-radius:10px;padding:4px 8px;font-size:.8rem;font-weight:600}
+.fl-ladder span small{display:block;font-weight:400;color:var(--muted)}
+.fl-ladder span.ok{background:var(--green-soft,#e3f6e8)}.fl-ladder span.mid{background:var(--orange-soft,#fff4e5)}
+.fl-par td small{display:block;color:var(--muted)}
