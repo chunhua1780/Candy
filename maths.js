@@ -31,6 +31,12 @@ function seedRand(str){let h=2166136261;for(const c of str){h^=c.charCodeAt(0);h
    up to 4 questions got wrong before, 8 from the unit taught now, 6 from earlier Year 7 units (never primary-school work)
    and 2 of the school test-paper types (bar charts, averages, Venn diagrams, factors, frequency), made fresh and
    saved with the day so they stay the same on every device. Unseen questions come first. */
+/* the questions of the last day with a set (up to 5 days back) that were never answered */
+function mCarry(date){
+  for(let k=1;k<=5;k++){const d=dayOf(addDays(date,-k)); if(!d||!(d.ids||[]).length)continue;
+    return d.ids.filter(id=>!(id in (d.ans||{}))&&MQ[id]&&!/^g/.test(id)).slice(0,12);}
+  return [];
+}
 function dailySet(date,create=true){
   const M=MB(), ex=dayOf(date);
   if(ex&&(ex.ids||[]).length){if(ex.gq)for(const [id,q] of Object.entries(ex.gq))MQ[id]=q;return ex;}
@@ -43,6 +49,7 @@ function dailySet(date,create=true){
   const retry=Object.entries(st).filter(([id,s])=>MQ[id]&&!(typeof isPrimary==="function"&&isPrimary(MQ[id]))&&!id.startsWith("w:")&&s.ok===false&&(s.last||"")<date).sort((a,b)=>(a[1].last||"")<(b[1].last||"")?-1:1).slice(0,4).map(x=>x[0]);
   // spaced check: a question put right about a week ago comes back once, to see that it has stuck
   retry.push(...Object.entries(st).filter(([id,s])=>MQ[id]&&!id.startsWith("w:")&&s.ok===true&&s.fx&&!s.cf&&dayDiff(s.fx,date)>=6&&!retry.includes(id)).sort((a,b)=>(a[1].fx<b[1].fx?-1:1)).slice(0,2).map(x=>x[0]));
+  retry.unshift(...mCarry(date).filter(id=>!retry.includes(id))); // a day missed or not finished: those questions come first today
   retry.forEach(id=>used.add(id));
   let ids=[...retry];
   if(typeof CU_UNITS!=="undefined"){
