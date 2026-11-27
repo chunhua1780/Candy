@@ -31,6 +31,37 @@ function seedRand(str){let h=2166136261;for(const c of str){h^=c.charCodeAt(0);h
    up to 4 questions got wrong before, 8 from the unit taught now, 6 from earlier Year 7 units (never primary-school work)
    and 2 of the school test-paper types (bar charts, averages, Venn diagrams, factors, frequency), made fresh and
    saved with the day so they stay the same on every device. Unseen questions come first. */
+/* ---------- 不会的题型 · the types she could not do: taught first the next day, mastered types are skipped ----------
+   A type (objective) she got wrong or needed Help with in the last 3 days comes first in the next day's 20:
+   a worked example of that type (the teacher shows it on the board; not counted), then 2 of the same type to do herself.
+   Types she has mastered (at least 5 answers, 90% right, the last one right) are left out of the new questions. */
+const mEx=q=>!!(q&&(q.example||(typeof MS!=="undefined"&&MS&&MS.exIds&&MS.exIds.has(q.id))));
+function weakTypes(days=3,date=today()){
+  const st=MB().q, from=addDays(date,-days), out={};
+  for(const [id,s] of Object.entries(st)){
+    if(!s||s.ok!==false||(s.last||"")<from||/^(f:|fl:|uc:|ct:|p:)/.test(id))continue;
+    const q=MQ[id]||(id.startsWith("w:")&&s.q?{...s.q,id}:null); if(!q||!q.o)continue;
+    const o=out[q.o]=out[q.o]||{o:q.o,t:q.t||"",ids:[],qs:[],last:""}; o.ids.push(id); if(o.qs.length<3)o.qs.push(q.q); if((s.last||"")>o.last)o.last=s.last;
+  }
+  return Object.values(out).sort((a,b)=>b.ids.length-a.ids.length||(a.last<b.last?1:-1));
+}
+function masteredTypes(){
+  const st=MB().q, by={};
+  for(const [id,s] of Object.entries(st)){const q=MQ[id];if(!q||!q.o||!s)continue;const o=by[q.o]=by[q.o]||{n:0,r:0,last:"",ok:true};o.n+=s.n||0;o.r+=s.r||0;if((s.last||"")>=o.last){o.last=s.last||"";o.ok=s.ok!==false;}}
+  return new Set(Object.entries(by).filter(([,o])=>o.n>=5&&o.r/o.n>=.9&&o.ok).map(([k])=>k));
+}
+/* the start of a day's set: per weak type a worked example and 2 to do */
+function weakBlock(date,skip){
+  const st=MB().q, used=new Set(skip), block=[], ex=[];
+  const okQ=q=>!used.has(q.id)&&!(typeof PAPER_TYPES!=="undefined"&&typeof isPrimary==="function"&&isPrimary(q));
+  for(const w of weakTypes(3,date).filter(w=>w.last<date).slice(0,4)){
+    const pool=MATHS.filter(q=>q.o===w.o&&okQ(q)), fresh=pool.filter(q=>!st[q.id]), seen=pool.filter(q=>st[q.id]&&st[q.id].ok!==false);
+    const e=(fresh[0]||seen[0]); if(!e)continue; used.add(e.id); block.push(e.id); ex.push(e.id);
+    const own=w.ids.filter(id=>MQ[id]&&!id.startsWith("w:")&&!used.has(id)).slice(0,1); own.forEach(id=>{used.add(id);block.push(id);});
+    for(const q of [...fresh.slice(1),...seen.slice(1)]){if(block.length-block.lastIndexOf(e.id)>2)break;if(!used.has(q.id)){used.add(q.id);block.push(q.id);}}
+  }
+  return {block,ex};
+}
 /* the questions of the last day with a set (up to 5 days back) that were never answered */
 function mCarry(date){
   for(let k=1;k<=5;k++){const d=dayOf(addDays(date,-k)); if(!d||!(d.ids||[]).length)continue;
@@ -44,6 +75,7 @@ function dailySet(date,create=true){
   const rnd=seedRand((Store.user||"")+"|"+date), st=M.q, used=new Set();
   const mix=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(rnd()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;};
   const take=(pool,n)=>{pool=pool.filter(id=>!used.has(id));
+    const MT=take.mt||(take.mt=masteredTypes()); pool=pool.filter(id=>!(MQ[id]&&MT.has(MQ[id].o)));
     const fresh=mixKinds(mix(pool.filter(id=>!st[id]&&!SERVED[id]))), older=pool.filter(id=>!fresh.includes(id)).sort((a,b)=>lastSeen(a,st)-lastSeen(b,st));
     const out=[...fresh,...older].slice(0,n); out.forEach(id=>used.add(id)); return out;};
   const retry=Object.entries(st).filter(([id,s])=>MQ[id]&&!(typeof isPrimary==="function"&&isPrimary(MQ[id]))&&!id.startsWith("w:")&&s.ok===false&&(s.last||"")<date).sort((a,b)=>(a[1].last||"")<(b[1].last||"")?-1:1).slice(0,4).map(x=>x[0]);
@@ -63,8 +95,8 @@ function dailySet(date,create=true){
     for(let i=0;i<2;i++){const p=PAPER_TYPES[(day*2+i)%PAPER_TYPES.length];let q=null;for(let g=0;g<30&&!q;g++){q=p.gen();if(q&&q.k==="n"&&!Number.isFinite(q.a))q=null;}
       if(q){const id=`gd:${date}:${i}`;gq[id]={...q,id,gen:p.k};MQ[id]=gq[id];ids.push(id);}}}
   if(ids.length<MDAY)ids.push(...take(typeof taught!=="undefined"?taught:MATHS.map(q=>q.id),MDAY-ids.length));
-  ids=ids.slice(0,MDAY);
-  M.days[DAYP+date]={ids,ans:{},u:Date.now(),...(Object.keys(gq).length?{gq}:{})}; Store.save(); markServed(ids.filter(id=>MQ[id]&&!id.startsWith("gd:")));
+  const WB=weakBlock(date,[]); ids=[...WB.block,...ids.filter(id=>!WB.block.includes(id))].slice(0,MDAY); // 不会的题型 first, with worked examples
+  M.days[DAYP+date]={ids,ans:{},u:Date.now(),...(Object.keys(gq).length?{gq}:{}),...(WB.ex.length?{ex:WB.ex}:{})}; Store.save(); markServed(ids.filter(id=>MQ[id]&&!id.startsWith("gd:")));
   return M.days[DAYP+date];
 }
 // Take one question of each kind in turn, so a set of 10 mixes the kinds instead of repeating one
@@ -301,6 +333,7 @@ function bindMaths(){
 let MS=null;
 function openMaths(o){
   MS={...o,i:0,tries:0,input:"",state:"ask",res:{},wrongPick:[]};
+  if(o.kind==="day"){const d=dayOf(o.date);MS.exIds=new Set((d&&d.ex)||[]);} // worked examples at the start of the day (not counted)
   if(o.kind==="day"||o.kind==="test"){const d=dayOf(o.kind==="test"?o.key:o.date);Object.entries(d.ans||{}).forEach(([id,a])=>MS.res[id]=a.ok);
     const first=o.ids.findIndex(id=>!(id in d.ans)); MS.i=first<0?o.ids.length:first;}
   window.__busy=true; $("#maths").hidden=false; document.body.style.overflow="hidden";
@@ -325,7 +358,7 @@ function renderMQ(){
   if(typeof lessonGate==="function"&&lessonGate(q,body))return; // a type she often gets wrong: the cartoon lesson first (lessons.js)
   const unit=q.u&&q.k==="n"?q.u:"", pre=unit==="£"?"£":"", post=unit&&unit!=="£"?unit:"";
   body.innerHTML=`<div class="m-q">
-    <div class="row" style="justify-content:space-between"><span class="kind-tag" style="--kc:${topicColor(q.t)}">${esc(q.t)}${q.example?" · 例题 Example":""}</span><span class="muted small">Question ${MS.i+1} of ${n}</span></div>
+    <div class="row" style="justify-content:space-between"><span class="kind-tag" style="--kc:${topicColor(q.t)}">${esc(q.t)}${mEx(q)?" · 例题 Example":""}</span><span class="muted small">Question ${MS.i+1} of ${n}</span></div>
     <div class="m-text">${mt(q.q)} <span class="m-tools"><button class="icon-btn sm" id="mSay" aria-label="Read the question">${ic("speaker")}</button>${zhBtnHtml()}</span></div>${zhLine(q.q,"q")}
     ${mFig(q.f)}
     ${q.k==="c"?`<div class="m-opts">${q.c.map((c,i)=>`<button class="opt-btn m-opt ${done&&i===q.a?"right":""} ${MS.wrongPick.includes(i)?"wrong":""}" data-opt="${i}" ${done||MS.wrongPick.includes(i)?"disabled":""}>${fracHtml(esc(c))}${zhLine(c,"opt")}</button>`).join("")}</div>`
@@ -347,7 +380,7 @@ function renderMQ(){
 function feedback(q){
   const st=MS.state, nx=`<button class="btn primary big" id="mNext">${MS.i+1<MS.ids.length?"Next question":"See results"}</button>`;
   if(st==="retry")return `<div class="mfb warn">${ic("x")}<div><b>Not quite. Have another go.</b><span>Stuck? Tap 答疑 for help, one step at a time.</span></div></div>${explainBox(q,false)}`;
-  if(st==="right"&&q.example)return `<div class="mfb ok">${ic("check")}<div><b>That was the example. Now try ones like it by yourself! 例题做完了，下面的同类题自己做！</b><span>${mt(q.w||"")}</span></div></div>`;
+  if(st==="right"&&mEx(q))return `<div class="mfb ok">${ic("check")}<div><b>That was the example. Now try ones like it by yourself! 例题做完了，下面的同类题自己做！</b><span>${mt(q.w||"")}</span></div></div>`;
   if(st==="right"&&MS.helped&&MS.helped[q.id])return `<div class="mfb warn">${ic("check")}<div><b>Right, well done! But you used Help, so this one does not count yet.</b><span>A similar question comes next: try it by yourself. 答对了！不过用了帮助，这题先不算分。下一题是类似的，自己试试！</span></div></div>`;
   if(st==="right")return `<div class="mfb ok">${ic("check")}<div><b>${MS.tries>1?"Correct on your second try!":"Correct!"}</b><span>${mt(q.w)}</span></div></div>${explainBox(q,true)}${nx}`;
   if(st==="shown")return `<div class="mfb bad">${ic("x")}<div><b>The answer is ${fracHtml(esc(showAns(q)))}</b><span>Here is how to work it out, step by step:</span></div></div>${explainBox(q,true)}${nx}`;
@@ -394,7 +427,7 @@ function answer(q,v){
   renderMQ();
 }
 function record(q,ok,given){
-  const hp=!!(MS.helped&&MS.helped[q.id])||!!q.example, real=ok; if(hp&&!q.example)ok=false; // a worked example is not counted either // answered with Help: not counted as right, and it comes back later
+  const hp=!!(MS.helped&&MS.helped[q.id])||!!mEx(q), real=ok; if(hp&&!mEx(q))ok=false; // a worked example is not counted either // answered with Help: not counted as right, and it comes back later
   const M=MB(), t=today(), key=q.gen?"p:"+q.gen:q.id, s=M.q[key]||{}; // generated questions keep one record per type
   M.q[key]={n:(s.n||0)+1,r:(s.r||0)+(ok?1:0),ok,last:t,u:Date.now(),...(s.q?{q:s.q}:{}),
     ...(s.wr||!ok?{wr:1}:{}),...(ok&&s.ok===false?{fx:t}:s.fx?{fx:s.fx}:{}),...(s.cf?{cf:s.cf}:ok&&s.fx&&dayDiff(s.fx,t)>=6?{cf:t}:{})}; // wr: once wrong, fx: the day it was put right, cf: still right a week later (spaced check)
@@ -522,4 +555,13 @@ function histBind(){
   document.querySelectorAll("[data-hmon]").forEach(b=>b.onclick=()=>{HIST_MON=b.dataset.hmon;render();setTimeout(()=>{const h=document.getElementById("hist");if(h)h.scrollIntoView({block:"start"});},50);});
   document.querySelectorAll("[data-hday]").forEach(b=>b.onclick=()=>{HIST_DAY=b.dataset.hday;HIST_MON=null;render();setTimeout(()=>{const h=document.getElementById("hist");if(h)h.scrollIntoView({block:"start"});},50);});
   const hb=document.getElementById("histBad"); if(hb)hb.onchange=()=>{HIST_BAD=hb.checked;render();};
+}
+
+/* the parent page: 不会的题型 in the last 7 days */
+function weakTypesParent(){
+  const ws=weakTypes(7), t=today();
+  return `<div class="card stack no-zh"><h3 style="margin:0">${ic("x")} 不会的题型 · Types she can’t do yet</h3>
+    <div class="muted small">最近 7 天做错或用了 Help 的题型。第二天的每日数学一开始，每个题型先由老师讲一道例题（不算分），再自己做 2 道同类题。已经掌握的题型（至少 5 题、90% 正确）不再出新题。</div>
+    ${ws.length?`<div class="wt-list">${ws.map(w=>`<details><summary><b>${esc(w.o)}</b> <span class="muted small">${esc(w.t)} · ${w.ids.length} 题 · 最近 ${esc(shortDate(w.last))}${w.last<t?" · 已安排讲解":""}</span></summary><div class="small">${w.qs.map(q=>`<div>· ${mt(q)}</div>`).join("")}</div></details>`).join("")}</div>`:`<div class="notice">最近 7 天没有做错的题型。</div>`}
+  </div>`;
 }
